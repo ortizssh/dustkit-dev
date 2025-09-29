@@ -1,0 +1,10 @@
+{
+  "name": "@dustkit/tsconfig",
+  "version": "0.1.0",
+  "files": [
+    "base.json",
+    "nextjs.json",
+    "expo.json",
+    "react-library.json"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "name": "@dustkit/supabase",
+  "version": "0.1.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./expo": "./src/secureStoreAdapter.expo.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  },
+  "devDependencies": {
+    "@dustkit/eslint-config": "workspace:*",
+    "@dustkit/tsconfig": "workspace:*",
+    "eslint": "^8",
+    "expo-secure-store": "~13.0.2",
+    "typescript": "^5.5.4"
+  },
+  "peerDependencies": {
+    "expo-secure-store": "*"
+  },
+  "peerDependenciesMeta": {
+    "expo-secure-store": {
+      "optional": true
+    }
+  }
+}
