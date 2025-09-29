@@ -30,11 +30,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: [
     'expo-router',
-    'expo-secure-store'
+    'expo-secure-store',
+    'expo-auth-session'
   ],
   scheme: 'dustkit',
   extra: {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+    googleClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
   }
 })

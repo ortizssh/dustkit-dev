@@ -33,7 +33,7 @@ Stack moderno con Next.js 14+, Expo, React Native Web, Supabase y gestión de es
 
 ### Backend & Datos
 - **Base de Datos:** Supabase (PostgreSQL)
-- **Auth:** Supabase Auth con soporte SSR y OAuth
+- **Auth:** Supabase Auth con sistema completo de autenticación (SSR, OAuth, protección de rutas)
 - **Storage:** Supabase Storage para archivos
 - **Realtime:** Supabase Realtime para actualizaciones en vivo
 
@@ -59,13 +59,28 @@ dustkit-dev/
 ├── apps/
 │   ├── web/                    # Aplicación Next.js
 │   │   ├── app/                # App Router
-│   │   ├── lib/                # Utilidades (Supabase clients)
+│   │   │   ├── auth/           # Sistema de autenticación
+│   │   │   │   ├── signin/     # Página de inicio de sesión
+│   │   │   │   ├── signup/     # Página de registro
+│   │   │   │   ├── callback/   # Callback OAuth
+│   │   │   │   └── signout/    # Ruta de cierre de sesión
+│   │   │   └── dashboard/      # Dashboard protegido
+│   │   ├── lib/                # Utilidades y helpers
+│   │   │   ├── auth-helpers.ts # Helpers server-side
+│   │   │   ├── auth-hooks.ts   # Hooks client-side
+│   │   │   └── supabase-*.ts   # Clientes Supabase
+│   │   ├── middleware.ts       # Middleware de auth
 │   │   ├── public/             # Assets estáticos
 │   │   └── package.json
 │   │
 │   └── mobile/                 # Aplicación Expo
 │       ├── app/                # Expo Router
+│       │   ├── (auth)/         # Grupo de rutas de auth
+│       │   │   ├── signin.tsx  # Pantalla de login
+│       │   │   └── signup.tsx  # Pantalla de registro
+│       │   └── dashboard/      # Dashboard móvil
 │       ├── src/                # Código fuente
+│       │   └── supabase.ts     # Cliente Supabase móvil
 │       ├── assets/             # Imágenes y fonts
 │       └── package.json
 │
@@ -160,8 +175,12 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... # Solo para server-side
 
-# Opcional
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+# Autenticación
+NEXT_PUBLIC_SITE_URL=http://localhost:3000  # Para OAuth redirects
+
+# Google OAuth (opcional)
+GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPx-xxxxxxxxxxxxxxxxxxxxx
 ```
 
 #### Mobile (.env en apps/mobile/)
@@ -175,10 +194,11 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 EXPO_PUBLIC_GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
 ```
 
-### 4. Configurar base de datos (opcional)
+### 4. Configurar base de datos y autenticación
 
-Si usas Supabase local:
+#### Configurar Supabase (requerido para auth)
 
+**Opción A: Supabase Local (desarrollo)**
 ```bash
 # Inicializar Supabase
 supabase init
@@ -186,8 +206,47 @@ supabase init
 # Levantar servicios locales
 supabase start
 
-# Aplicar migraciones
+# Aplicar migraciones (incluye tablas de auth)
 supabase db reset
+```
+
+**Opción B: Supabase Cloud (producción)**
+1. Crea un proyecto en [supabase.com](https://supabase.com)
+2. Ve a Settings > API para obtener tus keys
+3. Configura variables de entorno con tus valores reales
+
+#### Configurar Google OAuth (opcional)
+
+1. **Crear proyecto en Google Cloud Console:**
+   - Ve a [console.cloud.google.com](https://console.cloud.google.com)
+   - Crea un nuevo proyecto o selecciona uno existente
+   - Habilita la Google+ API
+
+2. **Configurar OAuth 2.0:**
+   - Ve a Credentials > Create Credentials > OAuth 2.0 Client ID
+   - Selecciona "Web application"
+   - Agrega las Authorized redirect URIs:
+     ```
+     http://localhost:3000/auth/callback
+     https://tu-dominio.com/auth/callback
+     ```
+
+3. **Configurar en Supabase:**
+   - Ve a Authentication > Providers
+   - Habilita Google
+   - Agrega tu Client ID y Client Secret
+
+### 5. Verificar instalación
+
+```bash
+# Levantar aplicaciones
+pnpm dev
+
+# Verificar que funciona:
+# 1. Abre http://localhost:3000
+# 2. Ve a /dashboard (debe redirigir a signin)
+# 3. Prueba el registro en /auth/signup
+# 4. Prueba el login en /auth/signin
 ```
 
 ---
@@ -319,50 +378,266 @@ supabase gen types typescript --local > packages/core/src/database.types.ts
 
 ---
 
-## 🔐 Autenticación
+## 🔐 Sistema de Autenticación
 
-### Web (SSR con cookies)
+Dustkit incluye un sistema completo de autenticación universal que funciona tanto en web como en mobile, con soporte para múltiples métodos de inicio de sesión, protección de rutas automática y manejo de estado compartido.
+
+### 🎯 Características del Sistema
+
+- **Autenticación Universal:** Misma lógica para web y mobile
+- **Métodos de Inicio de Sesión:**
+  - Email/Contraseña con validación
+  - Google OAuth (web y mobile)
+  - Registro de nuevos usuarios
+- **Protección de Rutas:** Middleware automático que protege rutas privadas
+- **Dashboard Integrado:** Interfaz de usuario post-autenticación
+- **Hooks Compartidos:** Estado de autenticación accesible en toda la aplicación
+- **Manejo de Errores:** Páginas de error específicas y mensajes informativos
+- **Redirects Inteligentes:** Redirige a la página original después del login
+
+### 🌐 Implementación Web (Next.js)
+
+#### Protección de Rutas con Middleware
+
+El middleware protege automáticamente las rutas definidas y maneja redirects:
 
 ```typescript
-// app/layout.tsx
-import { createClient } from '@/lib/supabase-server'
+// middleware.ts - Configuración automática
+const protectedRoutes = [
+  '/dashboard',
+  '/profile', 
+  '/settings'
+]
+```
 
-export default async function RootLayout() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+#### Autenticación Server-Side (SSR)
+
+```typescript
+// app/dashboard/page.tsx
+import { requireAuth } from '@/lib/auth-helpers'
+
+export default async function DashboardPage() {
+  // Redirige automáticamente a /auth/signin si no está autenticado
+  const user = await requireAuth()
   
   return (
-    <html>
-      {/* ... */}
-    </html>
+    <div>
+      <h1>Bienvenido, {user.email}</h1>
+      {/* Contenido protegido */}
+    </div>
   )
 }
 ```
 
-### Mobile (SecureStore)
+#### Hooks Client-Side
+
+```typescript
+// components/user-menu.tsx
+'use client'
+import { useAuth } from '@/lib/auth-hooks'
+
+export default function UserMenu() {
+  const { user, loading, signOut } = useAuth()
+  
+  if (loading) return <div>Cargando...</div>
+  
+  if (!user) {
+    return <a href="/auth/signin">Iniciar Sesión</a>
+  }
+  
+  return (
+    <div>
+      <span>Hola, {user.email}</span>
+      <button onClick={signOut}>Cerrar Sesión</button>
+    </div>
+  )
+}
+```
+
+### 📱 Implementación Mobile (Expo)
+
+#### Autenticación con SecureStore
 
 ```typescript
 // app/_layout.tsx
 import { supabase } from '@/src/supabase'
-import { useSession } from '@dustkit/core'
+import { useAuth } from '@dustkit/core'
 
 export default function Layout() {
-  const { user, isAuthenticated } = useSession(supabase)
+  const { user, isAuthenticated } = useAuth(supabase)
   
   if (!isAuthenticated) {
-    return <Redirect href="/login" />
+    return <Redirect href="/(auth)/signin" />
   }
   
   return <Stack />
 }
 ```
 
-### OAuth Setup
+#### Componente de Login Mobile
 
-1. Configurar providers en Supabase Dashboard
-2. Agregar redirect URLs:
-   - Web: `http://localhost:3000/auth/callback`
-   - Mobile: `dustkit://auth/callback`
+```typescript
+// app/(auth)/signin.tsx
+import { supabase } from '../../src/supabase'
+
+export default function SignInScreen() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  
+  const handleSignIn = async () => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+    
+    if (!error) {
+      router.replace('/dashboard')
+    }
+  }
+  
+  // Google OAuth con expo-auth-session
+  const [request, response, promptAsync] = AuthSession.useAuthRequest({
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+    scopes: ['openid', 'profile', 'email'],
+    redirectUri: AuthSession.makeRedirectUri({ useProxy: true }),
+  })
+  
+  return (
+    <View>
+      {/* Formulario de login */}
+      <Button title="Continuar con Google" onPress={() => promptAsync()} />
+    </View>
+  )
+}
+```
+
+### ⚙️ Configuración de OAuth
+
+#### 1. Configurar Google OAuth en Supabase
+
+1. Ve a **Authentication > Providers** en tu dashboard de Supabase
+2. Habilita **Google** como provider
+3. Agrega tus credenciales de Google Console:
+   ```
+   Client ID: xxxxx.apps.googleusercontent.com
+   Client Secret: GOCSPx-xxxxxxxxxxxxxxxxxxxxx
+   ```
+
+#### 2. URLs de Redirect
+
+Configura estas URLs en tu Google Console y Supabase:
+
+**Web:**
+```
+http://localhost:3000/auth/callback
+https://tu-dominio.com/auth/callback
+```
+
+**Mobile:**
+```
+exp://127.0.0.1:19000/--/(auth)/signin
+dustkit://auth/callback
+```
+
+#### 3. Variables de Entorno Requeridas
+
+**Web (.env.local):**
+```env
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPx-xxxxxxxxxxxxxxxxxxxxx
+```
+
+**Mobile (.env):**
+```env
+EXPO_PUBLIC_GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
+```
+
+### 🛡️ Utilidades y Helpers
+
+#### Protección de Páginas
+
+```typescript
+// Requiere autenticación y redirige si no está autenticado
+const user = await requireAuth('/protected-page')
+
+// Solo verifica autenticación sin redirigir
+const { user, error } = await getCurrentUser()
+
+// Requiere permisos específicos
+const user = await requirePermission('admin', '/unauthorized')
+```
+
+#### Hooks del Cliente
+
+```typescript
+// Hook básico de autenticación
+const { user, loading, signOut, refreshSession } = useAuth()
+
+// Verificar si está autenticado
+const isAuthenticated = useIsAuthenticated()
+
+// Requiere autenticación en componentes cliente
+const { user, loading } = useRequireAuth('/redirect-here')
+```
+
+### 🔄 Flujos de Autenticación
+
+#### Flujo de Login
+
+1. Usuario intenta acceder a ruta protegida (`/dashboard`)
+2. Middleware detecta usuario no autenticado
+3. Redirige a `/auth/signin?redirectTo=/dashboard`
+4. Usuario se autentica exitosamente
+5. Redirige automáticamente a `/dashboard`
+
+#### Flujo OAuth (Google)
+
+1. Usuario hace clic en "Continuar con Google"
+2. Redirige a Google OAuth
+3. Google redirige a `/auth/callback?code=...&next=/dashboard`
+4. Callback intercambia el código por una sesión
+5. Usuario redirigido al dashboard o destino original
+
+#### Flujo de Logout
+
+1. Usuario hace clic en cerrar sesión
+2. Sesión eliminada de Supabase
+3. Cookies/SecureStore limpiado
+4. Redirigido a página principal
+
+### 📄 Páginas de Autenticación
+
+El sistema incluye páginas completas y estilizadas:
+
+- **`/auth/signin`** - Inicio de sesión con email/contraseña y Google OAuth
+- **`/auth/signup`** - Registro de nuevos usuarios
+- **`/auth/callback`** - Manejo de callbacks OAuth
+- **`/auth/auth-code-error`** - Página de errores de autenticación
+- **`/dashboard`** - Dashboard protegido post-autenticación
+
+### 🔧 Configuración del Dashboard
+
+El dashboard incluye:
+- Información del usuario autenticado
+- Opciones de cerrar sesión
+- Interfaz responsiva (web y mobile)
+- Navegación protegida
+
+```typescript
+// app/dashboard/page.tsx
+export default async function Dashboard() {
+  const user = await requireAuth()
+  
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <p>Bienvenido, {user.email}</p>
+      <DashboardClient /> {/* Componente cliente */}
+    </div>
+  )
+}
+```
 
 ---
 
@@ -539,6 +814,84 @@ pnpm build --filter='./packages/*'
 - Confirma que el proyecto esté activo
 - Revisa políticas RLS en las tablas
 
+### 🔐 Problemas de Autenticación
+
+#### 1. Redirect loops infinitos
+
+**Problema:** El usuario queda atrapado en redirects entre páginas de auth.
+
+**Solución:**
+```bash
+# Verifica la configuración del middleware
+# Revisa que las rutas protegidas estén bien definidas
+# Confirma que /auth/* no esté en protectedRoutes
+```
+
+#### 2. Google OAuth no funciona
+
+**Problema:** Error al intentar iniciar sesión con Google.
+
+**Soluciones:**
+```bash
+# Verifica las variables de entorno
+GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPx-xxxxxxxxxxxxxxxxxxxxx
+
+# Confirma las URLs de redirect en Google Console:
+# Web: http://localhost:3000/auth/callback
+# Mobile: exp://127.0.0.1:19000/--/(auth)/signin
+
+# Verifica que Google esté habilitado en Supabase Dashboard
+```
+
+#### 3. Sesión no persiste
+
+**Problema:** El usuario debe iniciar sesión constantemente.
+
+**Soluciones:**
+```bash
+# Web: Verifica cookies en DevTools
+# Confirma NEXT_PUBLIC_SITE_URL en .env.local
+
+# Mobile: Verifica SecureStore
+# Reinstala la app si es necesario
+```
+
+#### 4. Error "Invalid auth code"
+
+**Problema:** Enlaces de autenticación dan error.
+
+**Soluciones:**
+```bash
+# Verifica que las URLs de callback estén configuradas correctamente
+# Confirma que el proyecto Supabase esté activo
+# Revisa los logs de Supabase Dashboard > Auth > Logs
+```
+
+#### 5. Dashboard no se carga
+
+**Problema:** Error 500 o página en blanco en el dashboard.
+
+**Soluciones:**
+```bash
+# Verifica que el usuario esté autenticado
+# Revisa los logs del servidor en terminal
+# Confirma que las tablas de profiles existan
+# Verifica las políticas RLS en Supabase
+```
+
+#### 6. Mobile: Expo AuthSession issues
+
+**Problema:** OAuth no funciona en mobile.
+
+**Soluciones:**
+```bash
+# Verifica EXPO_PUBLIC_GOOGLE_CLIENT_ID
+# Usa expo start --clear para limpiar cache
+# Confirma la configuración de AuthSession.makeRedirectUri()
+# Prueba con un dispositivo real si el simulador falla
+```
+
 ### Reset completo
 
 ```bash
@@ -547,6 +900,25 @@ pnpm clean
 rm -rf node_modules pnpm-lock.yaml
 pnpm install
 pnpm build
+```
+
+### Debug de Autenticación
+
+```bash
+# Para debuggear problemas de auth:
+
+# 1. Revisa logs del navegador (web)
+# F12 > Console > busca errores de Supabase
+
+# 2. Revisa logs de Supabase
+# Dashboard > Auth > Logs
+
+# 3. Verifica middleware (web)
+# Agrega console.log en middleware.ts
+
+# 4. Testa rutas manualmente
+curl -I http://localhost:3000/dashboard
+curl -I http://localhost:3000/auth/signin
 ```
 
 ---

@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
+import { StatusBar } from 'expo-status-bar'
 import 'react-native-url-polyfill/auto'
 
 export default function RootLayout() {
@@ -17,8 +18,26 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Stack>
-        <Stack.Screen name="index" options={{ title: 'Home' }} />
+      <StatusBar style="auto" />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        <Stack.Screen name="index" />
+        <Stack.Screen 
+          name="(auth)" 
+          options={{ 
+            headerShown: false,
+            presentation: 'modal' 
+          }} 
+        />
+        <Stack.Screen 
+          name="dashboard/index" 
+          options={{ 
+            headerShown: false 
+          }} 
+        />
       </Stack>
     </QueryClientProvider>
   )
