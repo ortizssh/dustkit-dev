@@ -3,9 +3,9 @@
   "display": "Expo",
   "extends": "./base.json",
   "compilerOptions": {
-    "target": "ESNext",
+    "target": "ES2020",
     "module": "ESNext",
-    "lib": ["ESNext"],
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "jsx": "react-native",
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
@@ -13,6 +13,23 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "strict": true,
-    "noEmit": true
+    "noEmit": true,
+    "isolatedModules": true,
+    "allowJs": true,
+    "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": false,
+    "composite": false,
+    "paths": {
+      "@/*": ["./src/*", "./*"],
+      "@dustkit/core": ["../../packages/core/src"],
+      "@dustkit/core/*": ["../../packages/core/src/*"],
+      "@dustkit/ui": ["../../packages/ui/src"],
+      "@dustkit/ui/*": ["../../packages/ui/src/*"],
+      "@dustkit/api-client": ["../../packages/api-client/src"],
+      "@dustkit/api-client/*": ["../../packages/api-client/src/*"],
+      "@dustkit/supabase": ["../../packages/integrations/supabase/src"],
+      "@dustkit/supabase/*": ["../../packages/integrations/supabase/src/*"]
+    },
+    "types": ["react-native", "expo"]
   }
 }

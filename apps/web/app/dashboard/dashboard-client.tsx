@@ -40,7 +40,7 @@ export default function DashboardClient({ user, profile }: DashboardClientProps)
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
                   <span className="text-white text-sm font-medium">
-                    {profile?.full_name ? profile.full_name[0].toUpperCase() : user.email?.[0].toUpperCase()}
+                    {profile?.full_name ? profile.full_name[0]?.toUpperCase() : (user.email?.[0]?.toUpperCase() || '?')}
                   </span>
                 </div>
                 <span className="text-sm text-gray-700">

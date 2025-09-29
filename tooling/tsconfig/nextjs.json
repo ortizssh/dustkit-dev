@@ -16,6 +16,23 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve"
+    "jsx": "preserve",
+    "downlevelIteration": true,
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "composite": false,
+    "verbatimModuleSyntax": false,
+    "paths": {
+      "@/*": ["./src/*", "./*"],
+      "@dustkit/core": ["../../packages/core/src"],
+      "@dustkit/core/*": ["../../packages/core/src/*"],
+      "@dustkit/ui": ["../../packages/ui/src"],
+      "@dustkit/ui/*": ["../../packages/ui/src/*"],
+      "@dustkit/api-client": ["../../packages/api-client/src"],
+      "@dustkit/api-client/*": ["../../packages/api-client/src/*"],
+      "@dustkit/supabase": ["../../packages/integrations/supabase/src"],
+      "@dustkit/supabase/*": ["../../packages/integrations/supabase/src/*"]
+    }
   }
 }

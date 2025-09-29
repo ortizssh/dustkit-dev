@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
+
 import type { SupabaseClientConfig } from './types'
 
-export function createSupabaseClient(config: SupabaseClientConfig) {
+export const createSupabaseClient = (config: SupabaseClientConfig) => {
   return createClient(config.url, config.anonKey, {
     auth: {
       storage: config.storage,

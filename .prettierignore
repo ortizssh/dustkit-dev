@@ -1,0 +1,39 @@
+# Build outputs
+**/dist
+**/build
+**/.next
+**/.expo
+**/android
+**/ios
+
+# Dependencies
+**/node_modules
+
+# Cache and temporary files
+**/*.tsbuildinfo
+**/.turbo
+**/coverage
+
+# Generated files
+**/database.types.ts
+
+# Platform specific
+**/Pods/**
+**/*.pbxproj
+
+# Environment
+**/.env*
+
+# IDE
+**/.vscode
+**/.idea
+
+# OS
+**/.DS_Store
+**/Thumbs.db
+
+# Markdown files in changeset (they have special formatting)
+.changeset/**/*.md
+
+# Package manager files
+pnpm-lock.yaml

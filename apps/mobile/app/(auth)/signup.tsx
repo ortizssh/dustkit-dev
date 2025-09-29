@@ -1,9 +1,3 @@
-import React, { useState } from 'react'
-import { Alert, ScrollView, StyleSheet } from 'react-native'
-import { Link, useRouter } from 'expo-router'
-import { StatusBar } from 'expo-status-bar'
-import * as AuthSession from 'expo-auth-session'
-import * as WebBrowser from 'expo-web-browser'
 import { 
   View, 
   Text, 
@@ -16,6 +10,13 @@ import {
   FormLabel,
   FormError
 } from '@dustkit/ui'
+import * as AuthSession from 'expo-auth-session'
+import { Link, useRouter } from 'expo-router'
+import { StatusBar } from 'expo-status-bar'
+import * as WebBrowser from 'expo-web-browser'
+import React, { useState } from 'react'
+import { Alert, ScrollView, StyleSheet } from 'react-native'
+
 import { supabase } from '../../src/supabase'
 
 // Configure WebBrowser for auth session
@@ -36,7 +37,7 @@ export default function SignUpScreen() {
     {
       clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '',
       scopes: ['openid', 'profile', 'email'],
-      redirectUri: AuthSession.makeRedirectUri({ useProxy: true }),
+      redirectUri: AuthSession.makeRedirectUri(),
     },
     { authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth' }
   )
@@ -290,11 +291,11 @@ export default function SignUpScreen() {
             <View style={styles.termsContainer}>
               <Text variant="caption" style={styles.termsText}>
                 Al crear una cuenta, aceptas nuestros{' '}
-                <Link href="#" style={styles.link}>
+                <Link href="/(auth)/signin" style={styles.link}>
                   <Text style={styles.termsLink}>Términos de Servicio</Text>
                 </Link>
                 {' '}y{' '}
-                <Link href="#" style={styles.link}>
+                <Link href="/(auth)/signin" style={styles.link}>
                   <Text style={styles.termsLink}>Política de Privacidad</Text>
                 </Link>
               </Text>

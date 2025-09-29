@@ -7,6 +7,24 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "module": "ESNext",
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": false,
+    "noEmit": false,
+    "emitDeclarationOnly": false,
+    "verbatimModuleSyntax": false,
+    "paths": {
+      "@dustkit/core": ["../core/src"],
+      "@dustkit/core/*": ["../core/src/*"],
+      "@dustkit/ui": ["../ui/src"],
+      "@dustkit/ui/*": ["../ui/src/*"],
+      "@dustkit/api-client": ["../api-client/src"],
+      "@dustkit/api-client/*": ["../api-client/src/*"],
+      "@dustkit/supabase": ["../integrations/supabase/src"],
+      "@dustkit/supabase/*": ["../integrations/supabase/src/*"]
+    }
   }
 }

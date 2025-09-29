@@ -374,8 +374,8 @@ export const getUserInitials = (user: any, profile?: any): string => {
   }
   
   const words = displayName.split(' ')
-  if (words.length >= 2) {
-    return (words[0][0] + words[1][0]).toUpperCase()
+  if (words.length >= 2 && words[0] && words[0].length > 0 && words[1] && words[1].length > 0) {
+    return ((words[0]?.[0] || '') + (words[1]?.[0] || '')).toUpperCase()
   }
   
   return displayName.substring(0, 2).toUpperCase()

@@ -86,7 +86,7 @@ export function useAuth(): AuthState & {
       if (error) {
         setError(error.message)
       } else {
-        router.push('/')
+        router.push('/' as any)
         router.refresh()
       }
     } catch (err) {
@@ -145,7 +145,7 @@ export function useRequireAuth(redirectTo?: string) {
       if (redirectTo) {
         searchParams.set('redirectTo', redirectTo)
       }
-      router.push(`/auth/signin?${searchParams.toString()}`)
+      router.push(`/auth/signin?${searchParams.toString()}` as any)
     }
   }, [user, loading, router, redirectTo])
 

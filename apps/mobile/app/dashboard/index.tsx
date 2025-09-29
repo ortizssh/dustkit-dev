@@ -1,8 +1,3 @@
-import React, { useState, useEffect } from 'react'
-import { Alert, ScrollView, StyleSheet, RefreshControl } from 'react-native'
-import { useRouter } from 'expo-router'
-import { StatusBar } from 'expo-status-bar'
-import { User } from '@supabase/supabase-js'
 import { 
   View, 
   Text, 
@@ -11,7 +6,15 @@ import {
   CardContent, 
   CardHeader 
 } from '@dustkit/ui'
+import { useRouter } from 'expo-router'
+import { StatusBar } from 'expo-status-bar'
+import React, { useState, useEffect } from 'react'
+import { Alert, ScrollView, StyleSheet, RefreshControl } from 'react-native'
+
 import { supabase } from '../../src/supabase'
+
+import type { User } from '@supabase/supabase-js'
+
 
 interface Profile {
   id: string
@@ -122,7 +125,7 @@ export default function DashboardScreen() {
       return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     }
     if (email) {
-      return email[0].toUpperCase()
+      return email[0]?.toUpperCase() || 'U'
     }
     return 'U'
   }

@@ -1,4 +1,5 @@
-import { useQuery, useMutation, useQueryClient, UseQueryOptions, UseMutationOptions } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { UseQueryOptions, UseMutationOptions } from '@tanstack/react-query'
 
 export function useApiQuery<T>(
   key: any[],
@@ -14,19 +15,10 @@ export function useApiQuery<T>(
 
 export function useApiMutation<TData = unknown, TVariables = void>(
   mutationFn: (variables: TVariables) => Promise<TData>,
-  options?: UseMutationOptions<TData, Error, TVariables>
+  options?: Omit<UseMutationOptions<TData, Error, TVariables>, 'mutationFn'>
 ) {
-  const queryClient = useQueryClient()
-  
   return useMutation({
     mutationFn,
-    onSuccess: (data, variables, context) => {
-      options?.onSuccess?.(data, variables, context)
-    },
-    onError: (error, variables, context) => {
-      console.error('API mutation error:', error)
-      options?.onError?.(error, variables, context)
-    },
     ...options,
   })
 }

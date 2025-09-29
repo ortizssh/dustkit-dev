@@ -1,4 +1,4 @@
-import { ExpoConfig, ConfigContext } from 'expo/config'
+import type { ExpoConfig, ConfigContext } from 'expo/config'
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -6,37 +6,60 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   slug: 'dustkit-mobile',
   version: '1.0.0',
   orientation: 'portrait',
-  icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
-  splash: {
-    image: './assets/splash.png',
-    resizeMode: 'contain',
-    backgroundColor: '#ffffff'
-  },
+  assetBundlePatterns: [
+    '**/*'
+  ],
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'com.dustkey.dustkit'
+    bundleIdentifier: 'com.dustkit.mobile',
+    infoPlist: {
+      CFBundleURLTypes: [
+        {
+          CFBundleURLName: 'dustkit',
+          CFBundleURLSchemes: ['dustkit']
+        }
+      ]
+    }
   },
   android: {
-    adaptiveIcon: {
-      foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#ffffff'
-    },
-    package: 'com.dustkey.dustkit'
+    package: 'com.dustkit.mobile',
+    intentFilters: [
+      {
+        action: 'VIEW',
+        autoVerify: true,
+        data: [
+          {
+            scheme: 'dustkit'
+          }
+        ],
+        category: ['BROWSABLE', 'DEFAULT']
+      }
+    ]
   },
   web: {
-    favicon: './assets/favicon.png',
     bundler: 'metro'
   },
   plugins: [
     'expo-router',
-    'expo-secure-store',
-    'expo-auth-session'
+    [
+      'expo-secure-store',
+      {
+        faceIDPermission: 'Allow $(PRODUCT_NAME) to use Face ID for secure authentication.'
+      }
+    ]
   ],
   scheme: 'dustkit',
   extra: {
+    eas: {
+      projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID
+    },
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     googleClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+    environment: process.env.NODE_ENV || 'development'
+  },
+  experiments: {
+    typedRoutes: true
   }
 })

@@ -530,7 +530,11 @@ export function useAuthForm<T extends Record<string, any>>(
     
     // Clear error when user starts typing
     if (errors[field as string]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }))
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[field as string]
+        return newErrors
+      })
     }
   }, [errors])
 

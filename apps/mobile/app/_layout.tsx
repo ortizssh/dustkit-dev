@@ -1,23 +1,9 @@
 import { Stack } from 'expo-router'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState, useEffect } from 'react'
 import { StatusBar } from 'expo-status-bar'
-import 'react-native-url-polyfill/auto'
 
 export default function RootLayout() {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 60 * 1000,
-          },
-        },
-      })
-  )
-
   return (
-    <QueryClientProvider client={queryClient}>
+    <>
       <StatusBar style="auto" />
       <Stack
         screenOptions={{
@@ -39,6 +25,6 @@ export default function RootLayout() {
           }} 
         />
       </Stack>
-    </QueryClientProvider>
+    </>
   )
 }

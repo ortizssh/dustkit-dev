@@ -1,22 +1,22 @@
-import React, { useState } from 'react'
-import { Alert, ScrollView, StyleSheet, Platform } from 'react-native'
-import { Link, useRouter } from 'expo-router'
-import { StatusBar } from 'expo-status-bar'
-import * as AuthSession from 'expo-auth-session'
-import * as WebBrowser from 'expo-web-browser'
 import { 
   View, 
   Text, 
   Input, 
   Button, 
   Card, 
-  CardContent, 
-  CardHeader,
+  CardContent,
   Form,
   FormField,
   FormLabel,
   FormError
 } from '@dustkit/ui'
+import * as AuthSession from 'expo-auth-session'
+import { Link, useRouter } from 'expo-router'
+import { StatusBar } from 'expo-status-bar'
+import * as WebBrowser from 'expo-web-browser'
+import React, { useState } from 'react'
+import { ScrollView, StyleSheet } from 'react-native'
+
 import { supabase } from '../../src/supabase'
 
 // Configure WebBrowser for auth session
@@ -34,7 +34,7 @@ export default function SignInScreen() {
     {
       clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '',
       scopes: ['openid', 'profile', 'email'],
-      redirectUri: AuthSession.makeRedirectUri({ useProxy: true }),
+      redirectUri: AuthSession.makeRedirectUri(),
     },
     { authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth' }
   )
@@ -185,7 +185,7 @@ export default function SignInScreen() {
               <Text variant="body" style={styles.linkText}>
                 ¿Olvidaste tu contraseña?{' '}
               </Text>
-              <Link href="#" style={styles.link}>
+              <Link href="/(auth)/signup" style={styles.link}>
                 <Text style={styles.linkTextBold}>Recupérala aquí</Text>
               </Link>
             </View>

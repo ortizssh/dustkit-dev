@@ -9,8 +9,12 @@
     "./expo": "./src/secureStoreAdapter.expo.ts"
   },
   "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
     "lint": "eslint .",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json}\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0"

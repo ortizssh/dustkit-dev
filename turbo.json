@@ -1,51 +1,124 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["**/.env.*local"],
-  "pipeline": {
+  "globalDependencies": ["**/.env.*local", ".env", ".env.local"],
+  "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**", "build/**"],
+      "inputs": [
+        "src/**",
+        "app/**",
+        "lib/**",
+        "components/**",
+        "pages/**",
+        "public/**",
+        "assets/**",
+        "package.json",
+        "tsconfig.json",
+        "next.config.*",
+        "expo.json",
+        "app.config.*",
+        "metro.config.*",
+        "babel.config.*",
+        "tailwind.config.*",
+        "postcss.config.*"
+      ],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "dist/**",
+        "build/**",
+        ".expo/**"
+      ],
       "env": [
+        "NODE_ENV",
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "EXPO_PUBLIC_SUPABASE_URL",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY",
+        "SUPABASE_URL",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY"
+      ]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["^build"],
+      "env": [
+        "NODE_ENV",
         "NEXT_PUBLIC_SUPABASE_URL",
         "NEXT_PUBLIC_SUPABASE_ANON_KEY",
         "EXPO_PUBLIC_SUPABASE_URL",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY"
       ]
     },
-    "dev": {
-      "cache": false,
-      "persistent": true
-    },
     "lint": {
-      "dependsOn": ["^build"],
       "inputs": [
-        "**/*.ts",
-        "**/*.tsx",
-        "**/*.js",
-        "**/*.jsx",
-        "**/*.mjs",
-        "**/*.cjs"
-      ]
+        "src/**/*.{ts,tsx,js,jsx}",
+        "app/**/*.{ts,tsx,js,jsx}",
+        "lib/**/*.{ts,tsx,js,jsx}",
+        "components/**/*.{ts,tsx,js,jsx}",
+        "pages/**/*.{ts,tsx,js,jsx}",
+        ".eslintrc.*",
+        "eslint.config.*",
+        "package.json"
+      ],
+      "outputs": [".eslintcache"]
     },
     "type-check": {
-      "dependsOn": ["^build"],
       "inputs": [
-        "**/*.ts",
-        "**/*.tsx",
-        "tsconfig.json"
+        "src/**/*.{ts,tsx}",
+        "app/**/*.{ts,tsx}",
+        "lib/**/*.{ts,tsx}",
+        "components/**/*.{ts,tsx}",
+        "pages/**/*.{ts,tsx}",
+        "tsconfig.json",
+        "tsconfig.*.json",
+        "package.json"
+      ],
+      "outputs": ["tsconfig.tsbuildinfo"]
+    },
+    "format": {
+      "inputs": [
+        "src/**/*.{ts,tsx,js,jsx,json,md}",
+        "app/**/*.{ts,tsx,js,jsx,json,md}",
+        "lib/**/*.{ts,tsx,js,jsx,json,md}",
+        "components/**/*.{ts,tsx,js,jsx,json,md}",
+        "pages/**/*.{ts,tsx,js,jsx,json,md}",
+        "*.{ts,tsx,js,jsx,json,md}",
+        ".prettierrc*",
+        "prettier.config.*",
+        "package.json"
+      ],
+      "outputs": []
+    },
+    "format:check": {
+      "inputs": [
+        "src/**/*.{ts,tsx,js,jsx,json,md}",
+        "app/**/*.{ts,tsx,js,jsx,json,md}",
+        "lib/**/*.{ts,tsx,js,jsx,json,md}",
+        "components/**/*.{ts,tsx,js,jsx,json,md}",
+        "pages/**/*.{ts,tsx,js,jsx,json,md}",
+        "*.{ts,tsx,js,jsx,json,md}",
+        ".prettierrc*",
+        "prettier.config.*",
+        "package.json"
       ]
     },
     "test": {
       "dependsOn": ["^build"],
       "inputs": [
-        "**/*.ts",
-        "**/*.tsx",
-        "**/*.test.ts",
-        "**/*.test.tsx",
-        "**/*.spec.ts",
-        "**/*.spec.tsx"
+        "src/**/*.{ts,tsx}",
+        "app/**/*.{ts,tsx}",
+        "lib/**/*.{ts,tsx}",
+        "components/**/*.{ts,tsx}",
+        "**/*.test.{ts,tsx}",
+        "**/*.spec.{ts,tsx}",
+        "jest.config.*",
+        "vitest.config.*",
+        "package.json"
       ],
-      "outputs": ["coverage/**"]
+      "outputs": ["coverage/**", "test-results/**"]
     },
     "clean": {
       "cache": false

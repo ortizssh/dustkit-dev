@@ -16,7 +16,7 @@ export default function SignInPage() {
   const supabase = createClient()
 
   // Get redirect and error parameters
-  const redirectTo = searchParams.get('redirectTo') || '/dashboard'
+  const redirectTo = (searchParams.get('redirectTo') || '/dashboard') as any
   const authError = searchParams.get('error')
 
   useEffect(() => {

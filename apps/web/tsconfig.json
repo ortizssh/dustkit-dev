@@ -1,13 +1,26 @@
 {
   "extends": "@dustkit/tsconfig/nextjs.json",
   "compilerOptions": {
-    "plugins": [{ "name": "next" }]
+    "plugins": [{ "name": "next" }],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@dustkit/core": ["../../packages/core/src"],
+      "@dustkit/core/*": ["../../packages/core/src/*"],
+      "@dustkit/ui": ["../../packages/ui/src"],
+      "@dustkit/ui/*": ["../../packages/ui/src/*"],
+      "@dustkit/api-client": ["../../packages/api-client/src"],
+      "@dustkit/api-client/*": ["../../packages/api-client/src/*"],
+      "@dustkit/supabase": ["../../packages/integrations/supabase/src"],
+      "@dustkit/supabase/*": ["../../packages/integrations/supabase/src/*"]
+    }
   },
   "include": [
     "next-env.d.ts",
+    "global.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "dist", "build", ".next/cache"]
 }

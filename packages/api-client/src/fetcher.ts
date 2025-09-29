@@ -7,6 +7,7 @@ interface FetcherConfig {
 interface FetcherOptions extends RequestInit {
   params?: Record<string, any>
   timeout?: number
+  body?: BodyInit | null | undefined
 }
 
 class Fetcher {
@@ -58,7 +59,7 @@ class Fetcher {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
-      const data = await response.json()
+      const data = await response.json() as T
       return data
     } catch (error) {
       clearTimeout(timeoutId)
@@ -71,26 +72,29 @@ class Fetcher {
   }
 
   async post<T>(path: string, data?: any, options?: FetcherOptions): Promise<T> {
+    const body = data ? JSON.stringify(data) : null
     return this.request<T>(path, {
       ...options,
       method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
+      body,
     })
   }
 
   async put<T>(path: string, data?: any, options?: FetcherOptions): Promise<T> {
+    const body = data ? JSON.stringify(data) : null
     return this.request<T>(path, {
       ...options,
       method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
+      body,
     })
   }
 
   async patch<T>(path: string, data?: any, options?: FetcherOptions): Promise<T> {
+    const body = data ? JSON.stringify(data) : null
     return this.request<T>(path, {
       ...options,
       method: 'PATCH',
-      body: data ? JSON.stringify(data) : undefined,
+      body,
     })
   }
 

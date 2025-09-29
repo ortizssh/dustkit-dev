@@ -1,5 +1,21 @@
 {
   "extends": "@dustkit/tsconfig/react-library.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "composite": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false,
+    "paths": {
+      "@dustkit/ui": ["../ui/src"],
+      "@dustkit/ui/*": ["../ui/src/*"],
+      "@dustkit/api-client": ["../api-client/src"],
+      "@dustkit/api-client/*": ["../api-client/src/*"],
+      "@dustkit/supabase": ["../integrations/supabase/src"],
+      "@dustkit/supabase/*": ["../integrations/supabase/src/*"]
+    }
+  },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "dist", "build"]
 }

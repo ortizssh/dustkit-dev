@@ -5,7 +5,15 @@ interface ApiClientConfig {
   getAccessToken?: () => Promise<string | null>
 }
 
-export function createApiClient(config: ApiClientConfig) {
+export interface ApiClient {
+  get<T>(path: string, options?: any): Promise<T>
+  post<T>(path: string, data?: any, options?: any): Promise<T>
+  put<T>(path: string, data?: any, options?: any): Promise<T>
+  patch<T>(path: string, data?: any, options?: any): Promise<T>
+  delete<T>(path: string, options?: any): Promise<T>
+}
+
+export function createApiClient(config: ApiClientConfig): ApiClient {
   const getHeaders = async () => {
     const headers: Record<string, string> = {}
     

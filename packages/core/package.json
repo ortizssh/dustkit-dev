@@ -9,8 +9,12 @@
     "./hooks": "./src/hooks/index.ts"
   },
   "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
     "lint": "eslint .",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json}\""
   },
   "dependencies": {
     "@tanstack/react-query": "^5.56.2",

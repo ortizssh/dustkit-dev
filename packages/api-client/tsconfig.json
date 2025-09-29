@@ -1,5 +1,28 @@
 {
   "extends": "@dustkit/tsconfig/base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "noEmit": false,
+    "verbatimModuleSyntax": false,
+    "exactOptionalPropertyTypes": false,
+    "lib": ["ES2020", "DOM"],
+    "paths": {
+      "@dustkit/core": ["../core/src"],
+      "@dustkit/core/*": ["../core/src/*"],
+      "@dustkit/ui": ["../ui/src"],
+      "@dustkit/ui/*": ["../ui/src/*"],
+      "@dustkit/supabase": ["../integrations/supabase/src"],
+      "@dustkit/supabase/*": ["../integrations/supabase/src/*"]
+    }
+  },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "dist", "build"],
+  "references": [
+    { "path": "../core" }
+  ]
 }

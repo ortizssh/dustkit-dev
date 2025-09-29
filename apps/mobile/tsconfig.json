@@ -1,12 +1,30 @@
 {
   "extends": "@dustkit/tsconfig/expo.json",
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    "jsx": "react-jsx",
+    "target": "ES2020",
+    "baseUrl": ".",
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": ["./*"],
+      "@dustkit/core": ["../../packages/core/src"],
+      "@dustkit/core/*": ["../../packages/core/src/*"],
+      "@dustkit/ui": ["../../packages/ui/src"],
+      "@dustkit/ui/*": ["../../packages/ui/src/*"],
+      "@dustkit/api-client": ["../../packages/api-client/src"],
+      "@dustkit/api-client/*": ["../../packages/api-client/src/*"],
+      "@dustkit/supabase": ["../../packages/integrations/supabase/src"],
+      "@dustkit/supabase/*": ["../../packages/integrations/supabase/src/*"]
+    }
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-  ]
+    "expo-env.d.ts",
+    "../../packages/*/src/**/*.ts",
+    "../../packages/*/src/**/*.tsx"
+  ],
+  "exclude": ["node_modules", "dist", "build", ".expo/cache"]
 }

@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
-import * as SecureStore from 'expo-secure-store'
 import Constants from 'expo-constants'
+import * as SecureStore from 'expo-secure-store'
 
 const ExpoSecureStoreAdapter = {
   getItem: (key: string) => {
