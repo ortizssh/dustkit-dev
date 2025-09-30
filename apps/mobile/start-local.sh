@@ -1,13 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Reliable Expo start script that avoids global pnpm issues
-# This script uses explicit paths to ensure local dependencies are used
+set -euo pipefail
 
-echo "🧹 Cleaning caches..."
+echo "🧹 Cleaning local Expo caches..."
 rm -rf .expo .metro node_modules/.cache 2>/dev/null || true
 
-echo "📱 Starting Expo with local CLI (avoiding global pnpm issues)..."
+echo "📱 Starting Expo using the workspace @expo/cli..."
 
-# Use explicit Node.js path and local @expo/cli
-# This completely bypasses any global pnpm installations
-exec ~/.nvm/versions/node/v22.16.0/bin/node ./node_modules/@expo/cli/build/bin/cli start --clear --port 8098 "$@"
+# Explicitly invoke the CLI that lives inside the project to avoid falling
+# back to a globally installed version that Metro cannot watch.
+exec node ./node_modules/@expo/cli/build/bin/cli start --clear "$@"
