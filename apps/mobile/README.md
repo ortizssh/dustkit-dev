@@ -6,26 +6,31 @@ React Native mobile application built with Expo SDK 54.
 
 ### Starting the development server
 
-Use these commands to start the development server:
+From the repository root the Expo server can be started with Turbo:
 
 ```bash
-# RECOMMENDED: Use the local script (bypasses all global pnpm issues)
-pnpm run start:local
-
-# Alternative options:
-pnpm run dev        # Start Expo development server
-pnpm run start      # Same as dev
-pnpm run start:clear # Start with cleared cache
-
-# Direct execution (if other methods fail):
-npx expo start
-~/.nvm/versions/node/v22.16.0/bin/node ./node_modules/@expo/cli/build/bin/cli start --clear
+pnpm --filter @dustkit/mobile dev
 ```
 
-**Important**: 
-- **Use `pnpm run start:local`** for the most reliable startup (avoids all global pnpm conflicts)
-- Avoid using `pnpm exec expo start` as it causes Metro bundler SHA-1 errors with global pnpm installations
-- The `start:local` script uses explicit paths to bypass global pnpm entirely
+When you are already inside `apps/mobile` you can use the package scripts directly:
+
+```bash
+pnpm run dev        # Start Expo development server
+pnpm run start      # Alias of dev
+pnpm run start:clear # Clear caches before starting
+```
+
+There is also a `start-local.sh` helper that pins the execution to the workspace copy of `@expo/cli` and clears local caches before booting Metro:
+
+```bash
+./start-local.sh
+```
+
+**Important**:
+
+- Always rely on the workspace-managed CLI (`pnpm run dev` or `./start-local.sh`).
+- Avoid running `pnpm exec expo start` or any command that resolves to a globally installed Expo CLI — Metro will try to read files from the global pnpm store which is outside the configured watch folders and triggers SHA-1 errors.
+- If you previously installed `expo` globally via pnpm, prefer uninstalling it or ensure your shell resolves the local binary first.
 
 ### Platform-specific commands
 
@@ -54,12 +59,12 @@ pnpm run prebuild   # Generate native code
 
 ### Metro bundler errors
 
-If you encounter Metro bundler errors related to SHA-1 or global pnpm paths:
+If Metro prints `Failed to get the SHA-1 for: .../pnpm/global/.../require.js`, it is loading code from a globally installed Expo CLI that lives in pnpm's global store. Those directories are not watched by Metro, so hashing fails. The fix is to ensure the local CLI is used:
 
-1. Use `pnpm run start:local` (recommended - uses selective watchFolders solution)
-2. Alternative: Use `npx expo start` instead of `pnpm exec expo start`
-3. Clear all caches: `pnpm run clean && npx expo start --clear`
-4. If issues persist, check the Metro configuration in `metro.config.js`
+1. Start the server with `pnpm --filter @dustkit/mobile dev` or `./start-local.sh`.
+2. Remove any globally installed `expo` binary (e.g. `pnpm remove -g expo`).
+3. Clear caches if the error persists: `pnpm run clean && pnpm run start:clear`.
+4. Verify the `metro.config.js` file is unchanged and committed.
 
 ### Expected warnings (safe to ignore)
 
@@ -69,22 +74,9 @@ The following warnings are expected and don't affect functionality:
 - **"Route missing default export" warnings**: These appear during development when Expo Router analyzes files before TypeScript compilation. The routes work correctly.
 - **"New Architecture always enabled in Expo Go"**: When using Expo Go, the new architecture is always enabled regardless of config settings.
 
-### Module resolution issues
+### Metro configuration
 
-The Metro configuration is optimized for the monorepo structure and includes:
-- **Selective watchFolders**: Critical packages like `expo-router` and `@expo/metro-runtime` are dynamically discovered and added to watchFolders to enable SHA-1 calculation
-- **Intelligent blockList**: Single function-based blockList that allows critical packages while blocking problematic global pnpm paths
-- Package exports enabled for compatibility with modern packages
-- Aliases for `@dustkit/*` packages
-- Custom resolver that rejects global pnpm resolutions
-
-### pnpm Symlink Handling
-
-The Metro configuration intelligently handles pnpm symlinks by:
-- Automatically discovering critical package paths using `require.resolve()`
-- Adding only necessary pnpm directories to `watchFolders`
-- Using selective blocking that allows critical packages but blocks problematic paths
-- Maintaining performance by not watching the entire `.pnpm` directory structure
+`apps/mobile/metro.config.js` extends Expo's default settings and simply adds the workspace root to `watchFolders` plus explicit `nodeModulesPaths`. This keeps Metro focused on the monorepo while avoiding user-specific global directories that previously caused SHA-1 failures.
 
 ## Architecture
 

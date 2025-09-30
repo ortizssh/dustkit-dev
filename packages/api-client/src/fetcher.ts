@@ -1,29 +1,36 @@
-interface FetcherConfig {
+export type JsonPrimitive = string | number | boolean | null
+export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue | undefined }
+export type JsonRecord = { [key: string]: JsonValue | undefined }
+export type JsonSerializable = JsonValue | JsonRecord
+export type QueryParamValue = string | number | boolean | null | undefined
+export type QueryParams = Record<string, QueryParamValue>
+
+export interface FetcherConfig {
   baseURL?: string
   headers?: Record<string, string>
   timeout?: number
 }
 
-interface FetcherOptions extends RequestInit {
-  params?: Record<string, any>
+export interface FetcherOptions extends Omit<RequestInit, 'body'> {
+  params?: QueryParams
   timeout?: number
-  body?: BodyInit | null | undefined
+  body?: BodyInit | null
 }
 
 class Fetcher {
-  private baseURL: string
-  private defaultHeaders: Record<string, string>
-  private timeout: number
+  private readonly baseURL: string
+  private readonly defaultHeaders: Record<string, string>
+  private readonly timeout: number
 
   constructor(config: FetcherConfig = {}) {
-    this.baseURL = config.baseURL || ''
-    this.defaultHeaders = config.headers || {}
-    this.timeout = config.timeout || 30000
+    this.baseURL = config.baseURL ?? ''
+    this.defaultHeaders = config.headers ?? {}
+    this.timeout = config.timeout ?? 30_000
   }
 
-  private buildURL(path: string, params?: Record<string, any>): string {
+  private buildURL(path: string, params?: QueryParams): string {
     const url = new URL(path, this.baseURL)
-    
+
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -31,7 +38,7 @@ class Fetcher {
         }
       })
     }
-    
+
     return url.toString()
   }
 
@@ -59,7 +66,7 @@ class Fetcher {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
-      const data = await response.json() as T
+      const data = (await response.json()) as T
       return data
     } catch (error) {
       clearTimeout(timeoutId)
@@ -71,8 +78,8 @@ class Fetcher {
     return this.request<T>(path, { ...options, method: 'GET' })
   }
 
-  async post<T>(path: string, data?: any, options?: FetcherOptions): Promise<T> {
-    const body = data ? JSON.stringify(data) : null
+  async post<T>(path: string, data?: JsonSerializable, options?: FetcherOptions): Promise<T> {
+    const body = data === undefined ? null : JSON.stringify(data)
     return this.request<T>(path, {
       ...options,
       method: 'POST',
@@ -80,8 +87,8 @@ class Fetcher {
     })
   }
 
-  async put<T>(path: string, data?: any, options?: FetcherOptions): Promise<T> {
-    const body = data ? JSON.stringify(data) : null
+  async put<T>(path: string, data?: JsonSerializable, options?: FetcherOptions): Promise<T> {
+    const body = data === undefined ? null : JSON.stringify(data)
     return this.request<T>(path, {
       ...options,
       method: 'PUT',
@@ -89,8 +96,8 @@ class Fetcher {
     })
   }
 
-  async patch<T>(path: string, data?: any, options?: FetcherOptions): Promise<T> {
-    const body = data ? JSON.stringify(data) : null
+  async patch<T>(path: string, data?: JsonSerializable, options?: FetcherOptions): Promise<T> {
+    const body = data === undefined ? null : JSON.stringify(data)
     return this.request<T>(path, {
       ...options,
       method: 'PATCH',

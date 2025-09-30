@@ -1,11 +1,14 @@
-import type { 
-  ValidationResult, 
-  PasswordStrengthResult, 
-  SignUpData, 
-  SignInData, 
+import type {
+  ValidationResult,
+  PasswordStrengthResult,
+  SignUpData,
+  SignInData,
   UpdatePasswordData,
-  AuthError 
+  AuthError,
+  User,
+  Profile,
 } from './types'
+import type { Session } from '@supabase/supabase-js'
 
 /**
  * Email validation utility
@@ -97,9 +100,23 @@ export const checkPasswordStrength = (password: string): PasswordStrengthResult 
     score = Math.min(score + 1, 4)
   }
 
-  const strengthLabels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong']
   if (feedback.length === 0) {
-    feedback.push(`Password strength: ${strengthLabels[score]}`)
+    const label = (() => {
+      switch (score) {
+        case 4:
+          return 'Strong'
+        case 3:
+          return 'Good'
+        case 2:
+          return 'Fair'
+        case 1:
+          return 'Weak'
+        default:
+          return 'Very Weak'
+      }
+    })()
+
+    feedback.push(`Password strength: ${label}`)
   }
 
   return {
@@ -275,22 +292,39 @@ export const validateUpdatePasswordForm = (data: UpdatePasswordData): Record<str
 /**
  * Format auth error for display
  */
-export const formatAuthError = (error: any): AuthError => {
+export const formatAuthError = (error: unknown): AuthError => {
+  if (!error) {
+    return { message: 'An unexpected error occurred' }
+  }
+
   if (typeof error === 'string') {
     return { message: error }
   }
 
-  if (error?.message) {
-    return {
-      message: error.message,
-      code: error.code,
-      details: error.details
-    }
+  if (error instanceof Error) {
+    return { message: error.message }
   }
 
-  // Handle common Supabase auth errors
-  if (error?.error_description) {
-    return { message: error.error_description }
+  if (typeof error === 'object') {
+    const {
+      message,
+      code,
+      details,
+      error_description: description,
+    } = error as {
+      message?: string
+      code?: string
+      details?: unknown
+      error_description?: string
+    }
+
+    if (message) {
+      return { message, code, details }
+    }
+
+    if (description) {
+      return { message: description }
+    }
   }
 
   return { message: 'An unexpected error occurred' }
@@ -299,14 +333,22 @@ export const formatAuthError = (error: any): AuthError => {
 /**
  * Check if error is network related
  */
-export const isNetworkError = (error: any): boolean => {
-  if (!error) return false
-  
-  const errorMessage = error.message?.toLowerCase() || ''
-  return errorMessage.includes('network') || 
-         errorMessage.includes('fetch') || 
-         errorMessage.includes('connection') ||
-         error.code === 'NETWORK_ERROR'
+export const isNetworkError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+
+  const lowerCaseMessage = typeof (error as { message?: string }).message === 'string'
+    ? (error as { message: string }).message.toLowerCase()
+    : ''
+  const code = (error as { code?: string }).code ?? ''
+
+  return (
+    lowerCaseMessage.includes('network') ||
+    lowerCaseMessage.includes('fetch') ||
+    lowerCaseMessage.includes('connection') ||
+    code === 'NETWORK_ERROR'
+  )
 }
 
 /**
@@ -339,34 +381,44 @@ export const generateSecurePassword = (length = 16): string => {
 /**
  * Get user display name with fallbacks
  */
-export const getUserDisplayName = (user: any, profile?: any): string => {
-  if (profile?.display_name) {
-    return profile.display_name
+export const getUserDisplayName = (
+  user: User | null | undefined,
+  profile?: Profile | null,
+): string => {
+  if (profile) {
+    if (profile.display_name) {
+      return profile.display_name
+    }
+
+    if (profile.first_name && profile.last_name) {
+      return `${profile.first_name} ${profile.last_name}`
+    }
+
+    if (profile.first_name) {
+      return profile.first_name
+    }
   }
-  
-  if (profile?.first_name && profile?.last_name) {
-    return `${profile.first_name} ${profile.last_name}`
+
+  if (user) {
+    if (user.name) {
+      return user.name
+    }
+
+    if (user.email) {
+      return user.email.split('@')[0]
+    }
   }
-  
-  if (profile?.first_name) {
-    return profile.first_name
-  }
-  
-  if (user?.name) {
-    return user.name
-  }
-  
-  if (user?.email) {
-    return user.email.split('@')[0]
-  }
-  
+
   return 'User'
 }
 
 /**
  * Get user initials for avatar
  */
-export const getUserInitials = (user: any, profile?: any): string => {
+export const getUserInitials = (
+  user: User | null | undefined,
+  profile?: Profile | null,
+): string => {
   const displayName = getUserDisplayName(user, profile)
   
   if (displayName === 'User') {
@@ -374,10 +426,15 @@ export const getUserInitials = (user: any, profile?: any): string => {
   }
   
   const words = displayName.split(' ')
-  if (words.length >= 2 && words[0] && words[0].length > 0 && words[1] && words[1].length > 0) {
-    return ((words[0]?.[0] || '') + (words[1]?.[0] || '')).toUpperCase()
+  if (words.length >= 2 && words[0] && words[1]) {
+    const firstInitial = words[0].charAt(0)
+    const secondInitial = words[1].charAt(0)
+
+    if (firstInitial && secondInitial) {
+      return `${firstInitial}${secondInitial}`.toUpperCase()
+    }
   }
-  
+
   return displayName.substring(0, 2).toUpperCase()
 }
 
@@ -391,28 +448,52 @@ export const sanitizeInput = (input: string): string => {
 /**
  * Check if session is expired
  */
-export const isSessionExpired = (session: any): boolean => {
-  if (!session?.expires_at) {
+const resolveExpirationDate = (session: Session | null): Date | null => {
+  if (!session) {
+    return null
+  }
+
+  if (typeof session.expires_at === 'string') {
+    const parsedIso = Date.parse(session.expires_at)
+
+    if (!Number.isNaN(parsedIso)) {
+      return new Date(parsedIso)
+    }
+
+    const parsedNumber = Number(session.expires_at)
+    if (!Number.isNaN(parsedNumber)) {
+      return new Date(parsedNumber * 1000)
+    }
+  }
+
+  if (typeof session.expires_in === 'number') {
+    return new Date(Date.now() + session.expires_in * 1000)
+  }
+
+  return null
+}
+
+export const isSessionExpired = (session: Session | null): boolean => {
+  const expirationDate = resolveExpirationDate(session)
+
+  if (!expirationDate) {
     return true
   }
-  
-  const expiresAt = new Date(session.expires_at * 1000)
+
   const now = new Date()
-  
-  // Add 5 minute buffer before expiry
-  return expiresAt.getTime() - now.getTime() < 5 * 60 * 1000
+  return expirationDate.getTime() - now.getTime() < 5 * 60 * 1000
 }
 
 /**
  * Calculate session time remaining in seconds
  */
-export const getSessionTimeRemaining = (session: any): number => {
-  if (!session?.expires_at) {
+export const getSessionTimeRemaining = (session: Session | null): number => {
+  const expirationDate = resolveExpirationDate(session)
+
+  if (!expirationDate) {
     return 0
   }
-  
-  const expiresAt = new Date(session.expires_at * 1000)
+
   const now = new Date()
-  
-  return Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000))
+  return Math.max(0, Math.floor((expirationDate.getTime() - now.getTime()) / 1000))
 }

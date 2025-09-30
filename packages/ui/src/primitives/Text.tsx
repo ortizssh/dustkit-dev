@@ -1,12 +1,10 @@
 import React from 'react'
-import { Text as RNText, TextProps as RNTextProps, StyleSheet } from 'react-native'
+import { StyleSheet, Text as RNText, type TextProps as RNTextProps, type TextStyle } from 'react-native'
 
-interface TextProps extends RNTextProps {
-  variant?: 'h1' | 'h2' | 'h3' | 'body' | 'caption'
-}
+type TextVariant = 'h1' | 'h2' | 'h3' | 'body' | 'caption'
 
-export function Text({ variant = 'body', style, ...props }: TextProps) {
-  return <RNText style={[styles[variant], style]} {...props} />
+export interface TextProps extends RNTextProps {
+  variant?: TextVariant
 }
 
 const styles = StyleSheet.create({
@@ -35,3 +33,23 @@ const styles = StyleSheet.create({
     color: '#666',
   },
 })
+
+const getTextVariantStyle = (variant: TextVariant): TextStyle => {
+  switch (variant) {
+    case 'h1':
+      return styles.h1
+    case 'h2':
+      return styles.h2
+    case 'h3':
+      return styles.h3
+    case 'caption':
+      return styles.caption
+    case 'body':
+    default:
+      return styles.body
+  }
+}
+
+export const Text = ({ variant = 'body', style, ...props }: TextProps) => (
+  <RNText style={[getTextVariantStyle(variant), style]} {...props} />
+)
