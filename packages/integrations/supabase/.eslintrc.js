@@ -15,10 +15,10 @@ module.exports = {
   rules: {
     // Integration library should use named exports
     'import/no-default-export': 'error',
-    
+
     // Allow console for debugging database operations
     'no-console': ['warn', { allow: ['warn', 'error'] }],
-    
+
     // Database integration specific rules
     '@typescript-eslint/no-explicit-any': 'warn', // Database types can be complex
     '@typescript-eslint/no-unsafe-assignment': 'off', // Supabase client config can have complex types
@@ -60,18 +60,9 @@ module.exports = {
       },
     },
   ],
-    // Configuration files
-    {
-      files: [".eslintrc.js"],
-      parserOptions: {
-        project: null,
-      },
-    },
-  ],
-  overrides: [
   ignorePatterns: [
     'dist',
     'node_modules',
     '*.tsbuildinfo',
   ],
-}
+};

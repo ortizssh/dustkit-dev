@@ -1,20 +1,18 @@
 import React from 'react'
-import { TouchableOpacity, Text, StyleSheet, TouchableOpacityProps } from 'react-native'
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  type TextStyle,
+  type TouchableOpacityProps,
+  type ViewStyle,
+} from 'react-native'
+
+type ButtonVariant = 'primary' | 'secondary' | 'outline'
 
 export interface ButtonProps extends TouchableOpacityProps {
   title: string
-  variant?: 'primary' | 'secondary' | 'outline'
-}
-
-export function Button({ title, variant = 'primary', style, ...props }: ButtonProps) {
-  return (
-    <TouchableOpacity 
-      style={[styles.button, styles[variant], style]} 
-      {...props}
-    >
-      <Text style={[styles.text, styles[`${variant}Text`]]}>{title}</Text>
-    </TouchableOpacity>
-  )
+  variant?: ButtonVariant
 }
 
 const styles = StyleSheet.create({
@@ -50,3 +48,33 @@ const styles = StyleSheet.create({
     color: '#000',
   },
 })
+
+const getButtonVariantStyle = (variant: ButtonVariant): ViewStyle => {
+  switch (variant) {
+    case 'secondary':
+      return styles.secondary
+    case 'outline':
+      return styles.outline
+    case 'primary':
+    default:
+      return styles.primary
+  }
+}
+
+const getTextVariantStyle = (variant: ButtonVariant): TextStyle => {
+  switch (variant) {
+    case 'secondary':
+      return styles.secondaryText
+    case 'outline':
+      return styles.outlineText
+    case 'primary':
+    default:
+      return styles.primaryText
+  }
+}
+
+export const Button = ({ title, variant = 'primary', style, ...props }: ButtonProps) => (
+  <TouchableOpacity style={[styles.button, getButtonVariantStyle(variant), style]} {...props}>
+    <Text style={[styles.text, getTextVariantStyle(variant)]}>{title}</Text>
+  </TouchableOpacity>
+)
