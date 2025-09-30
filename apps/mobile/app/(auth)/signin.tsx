@@ -1,236 +1,136 @@
-import { 
-  View, 
-  Text, 
-  Input, 
-  Button, 
-  Card, 
-  CardContent,
-  Form,
-  FormField,
-  FormLabel,
-  FormError
-} from '@dustkit/ui'
-import * as AuthSession from 'expo-auth-session'
-import { Link, useRouter } from 'expo-router'
-import { StatusBar } from 'expo-status-bar'
-import * as WebBrowser from 'expo-web-browser'
 import React, { useState } from 'react'
-import { ScrollView, StyleSheet } from 'react-native'
-
-import { supabase } from '../../src/supabase'
-
-// Configure WebBrowser for auth session
-WebBrowser.maybeCompleteAuthSession()
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
+import { useRouter } from 'expo-router'
+import { StatusBar } from 'expo-status-bar'
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
   const router = useRouter()
-
-  // Create auth request for Google OAuth
-  const [request, response, promptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '',
-      scopes: ['openid', 'profile', 'email'],
-      redirectUri: AuthSession.makeRedirectUri(),
-    },
-    { authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth' }
-  )
-
-  // Handle OAuth response
-  React.useEffect(() => {
-    if (response?.type === 'success') {
-      const { authentication } = response
-      if (authentication?.accessToken) {
-        handleGoogleSignIn(authentication.accessToken)
-      }
-    }
-  }, [response])
 
   const handleSignIn = async () => {
     if (!email || !password) {
-      setError('Por favor ingresa email y contraseña')
+      Alert.alert('Error', 'Por favor completa todos los campos')
       return
     }
 
     setLoading(true)
-    setError('')
-
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      })
-
-      if (error) {
-        setError(error.message)
-      } else {
-        router.replace('/dashboard')
-      }
-    } catch (err) {
-      setError('Ocurrió un error inesperado')
-    } finally {
+    
+    // Simulamos autenticación
+    setTimeout(() => {
       setLoading(false)
-    }
-  }
-
-  const handleGoogleSignIn = async (accessToken: string) => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: 'exp://127.0.0.1:19000/--/(auth)/signin', // Adjust for your setup
-        },
-      })
-
-      if (error) {
-        setError(error.message)
-      }
-    } catch (err) {
-      setError('Error con la autenticación de Google')
-    }
-  }
-
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
+      Alert.alert('Éxito', 'Iniciando sesión...', [
+        {
+          text: 'OK',
+          onPress: () => router.replace('/home')
+        }
+      ])
+    }, 1000)
   }
 
   return (
-    <ScrollView 
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      keyboardShouldPersistTaps="handled"
-    >
-      <StatusBar style="dark" />
+    <View style={styles.container}>
+      <StatusBar style="auto" />
       
-      <View style={styles.header}>
-        <Text variant="h1" style={styles.title}>
-          Iniciar Sesión
+      <View style={styles.content}>
+        <Text style={styles.title}>
+          Dustkit Dev
         </Text>
-        <Text variant="body" style={styles.subtitle}>
-          Ingresa a tu cuenta para continuar
+        
+        <Text style={styles.subtitle}>
+          Inicia sesión en tu cuenta
         </Text>
-      </View>
 
-      <Card variant="elevated" style={styles.card}>
-        <CardContent style={styles.cardContent}>
-          <Form style={styles.form}>
-            {error ? (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
+        <View style={styles.card}>
+          <View style={styles.cardContent}>
+            <View style={styles.form}>
+              <View style={styles.field}>
+                <Text style={styles.label}>
+                  Email
+                </Text>
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="tu@email.com"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  style={styles.input}
+                />
               </View>
-            ) : null}
 
-            <FormField>
-              <FormLabel required>Email</FormLabel>
-              <Input
-                value={email}
-                onChangeText={setEmail}
-                placeholder="tu@email.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="email"
-                variant="outline"
-                style={styles.input}
-              />
-              {email && !validateEmail(email) && (
-                <FormError>Ingresa un email válido</FormError>
-              )}
-            </FormField>
+              <View style={styles.field}>
+                <Text style={styles.label}>
+                  Contraseña
+                </Text>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Tu contraseña"
+                  secureTextEntry
+                  style={styles.input}
+                />
+              </View>
 
-            <FormField>
-              <FormLabel required>Contraseña</FormLabel>
-              <Input
-                value={password}
-                onChangeText={setPassword}
-                placeholder="••••••••"
-                secureTextEntry
-                autoComplete="current-password"
-                variant="outline"
-                style={styles.input}
-              />
-              {password && password.length < 6 && (
-                <FormError>La contraseña debe tener al menos 6 caracteres</FormError>
-              )}
-            </FormField>
-
-            <Button
-              title={loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-              onPress={handleSignIn}
-              disabled={loading || !validateEmail(email) || password.length < 6}
-              style={styles.signInButton}
-            />
-
-            <View style={styles.dividerContainer}>
-              <View style={styles.divider} />
-              <Text variant="caption" style={styles.dividerText}>
-                O continúa con
-              </Text>
-              <View style={styles.divider} />
+              <TouchableOpacity
+                onPress={handleSignIn}
+                disabled={loading}
+                style={[styles.button, loading && styles.buttonDisabled]}
+              >
+                <Text style={styles.buttonText}>
+                  {loading ? 'Iniciando...' : 'Iniciar Sesión'}
+                </Text>
+              </TouchableOpacity>
             </View>
+          </View>
+        </View>
 
-            <Button
-              title="Continuar con Google"
-              variant="outline"
-              onPress={() => promptAsync()}
-              disabled={!request}
-              style={styles.googleButton}
-            />
-
-            <View style={styles.linkContainer}>
-              <Text variant="body" style={styles.linkText}>
-                ¿Olvidaste tu contraseña?{' '}
-              </Text>
-              <Link href="/(auth)/signup" style={styles.link}>
-                <Text style={styles.linkTextBold}>Recupérala aquí</Text>
-              </Link>
-            </View>
-
-            <View style={styles.signupContainer}>
-              <Text variant="body" style={styles.linkText}>
-                ¿No tienes cuenta?{' '}
-              </Text>
-              <Link href="/(auth)/signup" style={styles.link}>
-                <Text style={styles.linkTextBold}>Regístrate</Text>
-              </Link>
-            </View>
-          </Form>
-        </CardContent>
-      </Card>
-    </ScrollView>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            ¿No tienes cuenta?{' '}
+          </Text>
+          <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
+            <Text style={styles.link}>
+              Regístrate aquí
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f8fafc',
   },
-  contentContainer: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 40,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
+  content: {
+    flex: 1,
+    padding: 24,
+    justifyContent: 'center',
   },
   title: {
+    fontSize: 32,
+    fontWeight: 'bold',
     textAlign: 'center',
+    color: '#1e293b',
     marginBottom: 8,
-    color: '#111827',
   },
   subtitle: {
+    fontSize: 16,
     textAlign: 'center',
-    color: '#6b7280',
+    color: '#64748b',
+    marginBottom: 32,
   },
   card: {
-    marginBottom: 20,
+    marginBottom: 24,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   cardContent: {
     padding: 24,
@@ -238,64 +138,49 @@ const styles = StyleSheet.create({
   form: {
     gap: 20,
   },
+  field: {
+    gap: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
   input: {
-    fontSize: 16,
-    paddingVertical: 16,
-  },
-  signInButton: {
-    marginTop: 8,
-    paddingVertical: 16,
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e5e7eb',
-  },
-  dividerText: {
-    paddingHorizontal: 16,
-    color: '#9ca3af',
-  },
-  googleButton: {
-    paddingVertical: 16,
-    borderColor: '#e5e7eb',
-  },
-  linkContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  signupContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  linkText: {
-    color: '#6b7280',
-  },
-  link: {
-    // No styles needed, handled by Link component
-  },
-  linkTextBold: {
-    color: '#2563eb',
-    fontWeight: '600',
-  },
-  errorContainer: {
-    backgroundColor: '#fef2f2',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#d1d5db',
     borderRadius: 8,
     padding: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
   },
-  errorText: {
-    color: '#dc2626',
+  button: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+    padding: 16,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    backgroundColor: '#9ca3af',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footerText: {
     fontSize: 14,
-    textAlign: 'center',
+    color: '#64748b',
+  },
+  link: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontWeight: '500',
   },
 })

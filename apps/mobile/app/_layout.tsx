@@ -19,7 +19,7 @@ export default function RootLayout() {
           }} 
         />
         <Stack.Screen 
-          name="dashboard/index" 
+          name="home" 
           options={{ 
             headerShown: false 
           }} 
