@@ -1,3 +1,5 @@
+import type { Session } from '@supabase/supabase-js'
+
 export interface User {
   id: string
   email: string
@@ -26,13 +28,13 @@ export interface Profile {
 export interface AuthState {
   user: User | null
   profile: Profile | null
-  session: any | null
+  session: Session | null
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
   setUser: (user: User | null) => void
   setProfile: (profile: Profile | null) => void
-  setSession: (session: any | null) => void
+  setSession: (session: Session | null) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
   signOut: () => void
@@ -41,7 +43,7 @@ export interface AuthState {
 export interface AuthError {
   message: string
   code?: string
-  details?: any
+  details?: unknown
 }
 
 export interface SignUpData {
@@ -97,23 +99,23 @@ export interface PasswordStrengthResult {
   isValid: boolean
 }
 
-export type AuthEventType = 
+export type AuthEventType =
   | 'SIGNED_IN'
-  | 'SIGNED_OUT' 
+  | 'SIGNED_OUT'
   | 'TOKEN_REFRESHED'
   | 'USER_UPDATED'
   | 'PASSWORD_RECOVERY'
 
 export interface AuthEvent {
   event: AuthEventType
-  session: any | null
+  session: Session | null
   user: User | null
 }
 
 export interface AuthHookReturn {
   user: User | null
   profile: Profile | null
-  session: any | null
+  session: Session | null
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
@@ -122,20 +124,23 @@ export interface AuthHookReturn {
   signOut: () => Promise<{ error?: AuthError }>
   resetPassword: (data: ResetPasswordData) => Promise<{ error?: AuthError }>
   updatePassword: (data: UpdatePasswordData) => Promise<{ error?: AuthError }>
-  refreshSession: () => Promise<{ session?: any; error?: AuthError }>
+  refreshSession: () => Promise<{ session?: Session; error?: AuthError }>
 }
 
 export interface ProfileHookReturn {
   profile: Profile | null
   isLoading: boolean
   error: string | null
-  updateProfile: (data: UpdateProfileData) => Promise<{ profile?: Profile; error?: AuthError }>
+  updateProfile: (data: UpdateProfileData) => Promise<{
+    profile?: Profile
+    error?: AuthError
+  }>
   refetch: () => Promise<void>
 }
 
 export interface SessionHookReturn {
-  session: any | null
+  session: Session | null
   isLoading: boolean
   error: string | null
-  refreshSession: () => Promise<{ session?: any; error?: AuthError }>
+  refreshSession: () => Promise<{ session?: Session; error?: AuthError }>
 }

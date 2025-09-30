@@ -242,6 +242,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.58.0
+        version: 2.58.0
       '@tanstack/react-query':
         specifier: ^5.56.2
         version: 5.90.2(react@18.3.1)

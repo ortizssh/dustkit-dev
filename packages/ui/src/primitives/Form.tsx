@@ -1,44 +1,41 @@
 import React from 'react'
-import { View, ViewProps, StyleSheet } from 'react-native'
+import { StyleSheet, View, type ViewProps } from 'react-native'
+
 import { Text } from './Text'
 
-interface FormProps extends ViewProps {}
+export type FormProps = ViewProps
 
-export function Form({ style, ...props }: FormProps) {
-  return <View style={[styles.form, style]} {...props} />
-}
+export const Form = ({ style, ...props }: FormProps) => (
+  <View style={[styles.form, style]} {...props} />
+)
 
-interface FormFieldProps extends ViewProps {}
+export type FormFieldProps = ViewProps
 
-export function FormField({ style, ...props }: FormFieldProps) {
-  return <View style={[styles.field, style]} {...props} />
-}
+export const FormField = ({ style, ...props }: FormFieldProps) => (
+  <View style={[styles.field, style]} {...props} />
+)
 
 interface FormLabelProps {
   children: string
   required?: boolean
 }
 
-export function FormLabel({ children, required = false }: FormLabelProps) {
-  return (
-    <Text style={styles.label}>
-      {children}
-      {required && <Text style={styles.required}> *</Text>}
-    </Text>
-  )
-}
+export const FormLabel = ({ children, required = false }: FormLabelProps) => (
+  <Text style={styles.label}>
+    {children}
+    {required && <Text style={styles.required}> *</Text>}
+  </Text>
+)
 
 interface FormErrorProps {
   children: string
 }
 
-export function FormError({ children }: FormErrorProps) {
-  return (
-    <Text style={styles.error}>
-      {children}
-    </Text>
-  )
-}
+export const FormError = ({ children }: FormErrorProps) => (
+  <Text style={styles.error}>
+    {children}
+  </Text>
+)
 
 const styles = StyleSheet.create({
   form: {

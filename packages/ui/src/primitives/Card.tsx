@@ -1,36 +1,15 @@
 import React from 'react'
-import { View, ViewProps, StyleSheet } from 'react-native'
+import { StyleSheet, View, type ViewProps, type ViewStyle } from 'react-native'
 
-interface CardProps extends ViewProps {
-  variant?: 'default' | 'elevated'
+type CardVariant = 'default' | 'elevated'
+
+export interface CardProps extends ViewProps {
+  variant?: CardVariant
 }
 
-export function Card({ variant = 'default', style, ...props }: CardProps) {
-  return (
-    <View
-      style={[styles.card, styles[variant], style]}
-      {...props}
-    />
-  )
-}
-
-interface CardHeaderProps extends ViewProps {}
-
-export function CardHeader({ style, ...props }: CardHeaderProps) {
-  return <View style={[styles.header, style]} {...props} />
-}
-
-interface CardContentProps extends ViewProps {}
-
-export function CardContent({ style, ...props }: CardContentProps) {
-  return <View style={[styles.content, style]} {...props} />
-}
-
-interface CardFooterProps extends ViewProps {}
-
-export function CardFooter({ style, ...props }: CardFooterProps) {
-  return <View style={[styles.footer, style]} {...props} />
-}
+export type CardHeaderProps = ViewProps
+export type CardContentProps = ViewProps
+export type CardFooterProps = ViewProps
 
 const styles = StyleSheet.create({
   card: {
@@ -65,3 +44,29 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
 })
+
+const getCardVariantStyle = (variant: CardVariant): ViewStyle => {
+  switch (variant) {
+    case 'elevated':
+      return styles.elevated
+    case 'default':
+    default:
+      return styles.default
+  }
+}
+
+export const Card = ({ variant = 'default', style, ...props }: CardProps) => (
+  <View style={[styles.card, getCardVariantStyle(variant), style]} {...props} />
+)
+
+export const CardHeader = ({ style, ...props }: CardHeaderProps) => (
+  <View style={[styles.header, style]} {...props} />
+)
+
+export const CardContent = ({ style, ...props }: CardContentProps) => (
+  <View style={[styles.content, style]} {...props} />
+)
+
+export const CardFooter = ({ style, ...props }: CardFooterProps) => (
+  <View style={[styles.footer, style]} {...props} />
+)

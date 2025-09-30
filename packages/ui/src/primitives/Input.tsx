@@ -1,18 +1,10 @@
 import React from 'react'
-import { TextInput, TextInputProps, StyleSheet } from 'react-native'
+import { StyleSheet, TextInput, type TextInputProps, type TextStyle } from 'react-native'
 
-interface InputProps extends TextInputProps {
-  variant?: 'default' | 'outline'
-}
+type InputVariant = 'default' | 'outline'
 
-export function Input({ variant = 'default', style, ...props }: InputProps) {
-  return (
-    <TextInput
-      style={[styles.input, styles[variant], style]}
-      placeholderTextColor="#999"
-      {...props}
-    />
-  )
+export interface InputProps extends TextInputProps {
+  variant?: InputVariant
 }
 
 const styles = StyleSheet.create({
@@ -31,3 +23,21 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
   },
 })
+
+const getInputVariantStyle = (variant: InputVariant): TextStyle => {
+  switch (variant) {
+    case 'outline':
+      return styles.outline
+    case 'default':
+    default:
+      return styles.default
+  }
+}
+
+export const Input = ({ variant = 'default', style, ...props }: InputProps) => (
+  <TextInput
+    style={[styles.input, getInputVariantStyle(variant), style]}
+    placeholderTextColor="#999"
+    {...props}
+  />
+)

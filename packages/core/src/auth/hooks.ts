@@ -1,25 +1,121 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+
+import { formatAuthError, isNetworkError } from './utils'
 import { useAuthStore } from '../store/auth'
-import type { 
-  User, 
-  Profile, 
-  SignUpData, 
-  SignInData, 
-  ResetPasswordData, 
-  UpdatePasswordData, 
-  UpdateProfileData,
+
+import type {
   AuthError,
   AuthHookReturn,
+  Profile,
   ProfileHookReturn,
-  SessionHookReturn
+  ResetPasswordData,
+  SessionHookReturn,
+  SignInData,
+  SignUpData,
+  UpdatePasswordData,
+  UpdateProfileData,
+  User,
 } from './types'
-import { formatAuthError, isNetworkError } from './utils'
+import type {
+  SupabaseClient,
+  Session,
+  User as SupabaseUser,
+} from '@supabase/supabase-js'
 
-/**
- * Main authentication hook that works with both web and mobile
- * Requires a Supabase client to be passed in
- */
-export function useAuth(supabaseClient: any): AuthHookReturn {
+interface ProfilesTableDefinition {
+  Row: Profile
+  Insert: Omit<Profile, 'created_at' | 'updated_at'>
+  Update: Partial<Omit<Profile, 'id' | 'user_id' | 'created_at' | 'updated_at'>> & {
+    updated_at?: string
+  }
+}
+
+interface DatabaseSchema {
+  public: {
+    Tables: {
+      profiles: ProfilesTableDefinition
+    }
+  }
+}
+
+export type SupabaseAuthClient = SupabaseClient<DatabaseSchema>
+
+const mapUser = (supabaseUser: SupabaseUser | null | undefined): User | null => {
+  if (!supabaseUser) {
+    return null
+  }
+
+  const metadata = supabaseUser.user_metadata as
+    | Record<string, unknown>
+    | null
+    | undefined
+
+  const name = typeof metadata?.name === 'string' ? metadata.name : undefined
+  const avatarUrl =
+    typeof metadata?.avatar_url === 'string' ? metadata.avatar_url : undefined
+
+  return {
+    id: supabaseUser.id,
+    email: supabaseUser.email ?? '',
+    name,
+    avatar_url: avatarUrl,
+    created_at: supabaseUser.created_at,
+    updated_at: supabaseUser.updated_at,
+  }
+}
+
+const toNullableSession = (session: Session | null | undefined): Session | null =>
+  session ?? null
+
+const fetchProfile = async (
+  client: SupabaseAuthClient,
+  userId: string,
+): Promise<Profile | null> => {
+  const { data, error } = await client
+    .from('profiles')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
+const handleUnknownError = (error: unknown): AuthError => {
+  const formatted = formatAuthError(error)
+  return formatted
+}
+
+const resolveResetRedirect = (): string | undefined => {
+  if (typeof window === 'undefined') {
+    return undefined
+  }
+
+  const { origin } = window.location
+  return `${origin}/auth/callback?type=recovery`
+}
+
+const updateAuthStateFromSession = async (
+  client: SupabaseAuthClient,
+  session: Session | null,
+  setUser: (user: User | null) => void,
+  setProfile: (profile: Profile | null) => void,
+): Promise<void> => {
+  const mappedUser = mapUser(session?.user ?? null)
+  setUser(mappedUser)
+
+  if (mappedUser) {
+    const profile = await fetchProfile(client, mappedUser.id)
+    setProfile(profile)
+  } else {
+    setProfile(null)
+  }
+}
+
+export const useAuth = (client: SupabaseAuthClient | null): AuthHookReturn => {
   const {
     user,
     profile,
@@ -32,340 +128,291 @@ export function useAuth(supabaseClient: any): AuthHookReturn {
     setSession,
     setLoading,
     setError,
-    signOut: storeSignOut
+    signOut: storeSignOut,
   } = useAuthStore()
 
-  // Initialize auth state
   useEffect(() => {
-    if (!supabaseClient) return
+    if (!client) {
+      return
+    }
 
-    let mounted = true
+    let isMounted = true
 
-    const initializeAuth = async () => {
+    const initialize = async () => {
+      setLoading(true)
+      setError(null)
+
       try {
-        setLoading(true)
-        setError(null)
+        const { data, error: sessionError } = await client.auth.getSession()
 
-        // Get initial session
-        const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession()
-        
         if (sessionError) {
-          console.error('Error getting session:', sessionError)
-          setError(formatAuthError(sessionError).message)
+          throw sessionError
+        }
+
+        if (!isMounted) {
           return
         }
 
-        if (mounted) {
-          setSession(session)
-          
-          if (session?.user) {
-            const userData: User = {
-              id: session.user.id,
-              email: session.user.email!,
-              name: session.user.user_metadata?.name,
-              avatar_url: session.user.user_metadata?.avatar_url,
-              created_at: session.user.created_at,
-              updated_at: session.user.updated_at
-            }
-            setUser(userData)
-            
-            // Fetch profile data if user is authenticated
-            try {
-              const { data: profileData, error: profileError } = await supabaseClient
-                .from('profiles')
-                .select('*')
-                .eq('user_id', session.user.id)
-                .single()
+        const currentSession = data.session ?? null
+        setSession(currentSession)
+        await updateAuthStateFromSession(client, currentSession, setUser, setProfile)
+      } catch (unknownError) {
+        if (!isMounted) {
+          return
+        }
 
-              if (profileData && !profileError) {
-                setProfile(profileData)
-              }
-            } catch (profileError) {
-              console.warn('Could not fetch profile:', profileError)
-              // Don't set error for profile fetch failure as it's not critical
-            }
-          } else {
-            setUser(null)
-            setProfile(null)
-          }
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error)
-        if (mounted) {
-          setError(formatAuthError(error).message)
-        }
+        const formatted = handleUnknownError(unknownError)
+        setError(formatted.message)
       } finally {
-        if (mounted) {
+        if (isMounted) {
           setLoading(false)
         }
       }
     }
 
-    initializeAuth()
+    void initialize()
 
-    // Set up auth state listener
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
-      async (event: string, session: any) => {
-        if (!mounted) return
-
-        console.log('Auth state changed:', event, session?.user?.id)
-        
-        setSession(session)
-        setError(null)
-        
-        if (session?.user) {
-          const userData: User = {
-            id: session.user.id,
-            email: session.user.email!,
-            name: session.user.user_metadata?.name,
-            avatar_url: session.user.user_metadata?.avatar_url,
-            created_at: session.user.created_at,
-            updated_at: session.user.updated_at
-          }
-          setUser(userData)
-
-          // Fetch profile data for authenticated user
-          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            try {
-              const { data: profileData, error: profileError } = await supabaseClient
-                .from('profiles')
-                .select('*')
-                .eq('user_id', session.user.id)
-                .single()
-
-              if (profileData && !profileError) {
-                setProfile(profileData)
-              }
-            } catch (profileError) {
-              console.warn('Could not fetch profile:', profileError)
-            }
-          }
-        } else {
-          setUser(null)
-          setProfile(null)
+    const { data: authListener } = client.auth.onAuthStateChange(
+      async (_event, nextSession) => {
+        if (!isMounted) {
+          return
         }
-      }
+
+        setSession(nextSession)
+
+        try {
+          await updateAuthStateFromSession(client, nextSession, setUser, setProfile)
+          setError(null)
+        } catch (unknownError) {
+          const formatted = handleUnknownError(unknownError)
+          setError(formatted.message)
+        }
+      },
     )
 
     return () => {
-      mounted = false
-      subscription.unsubscribe()
+      isMounted = false
+      authListener.subscription.unsubscribe()
     }
-  }, [supabaseClient, setUser, setProfile, setSession, setLoading, setError])
+  }, [client, setError, setLoading, setProfile, setSession, setUser])
 
-  // Sign up function
-  const signUp = useCallback(async (data: SignUpData) => {
-    try {
+  const ensureClient = useCallback((): SupabaseAuthClient | null => {
+    if (!client) {
+      setError('Supabase client is not configured')
+      return null
+    }
+
+    return client
+  }, [client, setError])
+
+  const signUp = useCallback(
+    async (data: SignUpData) => {
+      const activeClient = ensureClient()
+      if (!activeClient) {
+        return { error: { message: 'Supabase client is not configured' } }
+      }
+
       setLoading(true)
       setError(null)
 
-      const { data: authData, error: authError } = await supabaseClient.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            name: data.displayName || data.firstName,
-            first_name: data.firstName,
-            last_name: data.lastName,
-          }
-        }
-      })
-
-      if (authError) {
-        const formattedError = formatAuthError(authError)
-        setError(formattedError.message)
-        return { error: formattedError }
-      }
-
-      if (authData.user) {
-        const userData: User = {
-          id: authData.user.id,
-          email: authData.user.email!,
-          name: authData.user.user_metadata?.name,
-          avatar_url: authData.user.user_metadata?.avatar_url,
-          created_at: authData.user.created_at,
-          updated_at: authData.user.updated_at
-        }
-
-        // Create profile record if user is confirmed
-        if (authData.user.email_confirmed_at) {
-          try {
-            const profileData = {
-              user_id: authData.user.id,
-              display_name: data.displayName,
+      try {
+    const { data: authData, error: authError } = await activeClient.auth.signUp({
+      email: data.email,
+      password: data.password,
+      options: {
+        data: {
               first_name: data.firstName,
               last_name: data.lastName,
-            }
+              display_name: data.displayName,
+              name: data.displayName ?? `${data.firstName ?? ''} ${data.lastName ?? ''}`.trim() || undefined,
+            },
+          },
+        })
 
-            const { data: newProfile, error: profileError } = await supabaseClient
-              .from('profiles')
-              .insert(profileData)
-              .select()
-              .single()
-
-            if (newProfile && !profileError) {
-              setProfile(newProfile)
-            }
-          } catch (profileError) {
-            console.warn('Could not create profile:', profileError)
-          }
+        if (authError) {
+          throw authError
         }
 
-        return { user: userData }
+        const nextSession = toNullableSession(authData.session)
+        setSession(nextSession)
+
+        await updateAuthStateFromSession(activeClient, nextSession, setUser, setProfile)
+
+        return { user: mapUser(authData.user) ?? undefined }
+      } catch (unknownError) {
+        const formatted = handleUnknownError(unknownError)
+        setError(formatted.message)
+        return { error: formatted }
+      } finally {
+        setLoading(false)
+      }
+    },
+    [ensureClient, setError, setLoading, setProfile, setSession, setUser],
+  )
+
+  const signIn = useCallback(
+    async (credentials: SignInData) => {
+      const activeClient = ensureClient()
+      if (!activeClient) {
+        return { error: { message: 'Supabase client is not configured' } }
       }
 
-      return {}
-    } catch (error) {
-      const formattedError = formatAuthError(error)
-      setError(formattedError.message)
-      return { error: formattedError }
-    } finally {
-      setLoading(false)
-    }
-  }, [supabaseClient, setLoading, setError, setProfile])
-
-  // Sign in function
-  const signIn = useCallback(async (data: SignInData) => {
-    try {
       setLoading(true)
       setError(null)
 
-      const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
-      })
+      try {
+        const { data: authData, error: authError } =
+          await activeClient.auth.signInWithPassword({
+            email: credentials.email,
+            password: credentials.password,
+          })
 
-      if (authError) {
-        const formattedError = formatAuthError(authError)
-        setError(formattedError.message)
-        return { error: formattedError }
-      }
-
-      if (authData.user) {
-        const userData: User = {
-          id: authData.user.id,
-          email: authData.user.email!,
-          name: authData.user.user_metadata?.name,
-          avatar_url: authData.user.user_metadata?.avatar_url,
-          created_at: authData.user.created_at,
-          updated_at: authData.user.updated_at
+        if (authError) {
+          throw authError
         }
 
-        return { user: userData }
+        const nextSession = toNullableSession(authData.session)
+        setSession(nextSession)
+
+        await updateAuthStateFromSession(activeClient, nextSession, setUser, setProfile)
+
+        return { user: mapUser(authData.user) ?? undefined }
+      } catch (unknownError) {
+        const formatted = handleUnknownError(unknownError)
+        setError(formatted.message)
+        return { error: formatted }
+      } finally {
+        setLoading(false)
       }
+    },
+    [ensureClient, setError, setLoading, setProfile, setSession, setUser],
+  )
 
-      return {}
-    } catch (error) {
-      const formattedError = formatAuthError(error)
-      setError(formattedError.message)
-      return { error: formattedError }
-    } finally {
-      setLoading(false)
-    }
-  }, [supabaseClient, setLoading, setError])
-
-  // Sign out function
   const signOut = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
+    const activeClient = ensureClient()
+    if (!activeClient) {
+      return { error: { message: 'Supabase client is not configured' } }
+    }
 
-      const { error } = await supabaseClient.auth.signOut()
-      
-      if (error) {
-        const formattedError = formatAuthError(error)
-        setError(formattedError.message)
-        return { error: formattedError }
+    setLoading(true)
+    setError(null)
+
+    try {
+      const { error: signOutError } = await activeClient.auth.signOut()
+
+      if (signOutError) {
+        throw signOutError
       }
 
-      // Clear local state
       storeSignOut()
-      
       return {}
-    } catch (error) {
-      const formattedError = formatAuthError(error)
-      setError(formattedError.message)
-      return { error: formattedError }
+    } catch (unknownError) {
+      const formatted = handleUnknownError(unknownError)
+      setError(formatted.message)
+      return { error: formatted }
     } finally {
       setLoading(false)
     }
-  }, [supabaseClient, setLoading, setError, storeSignOut])
+  }, [ensureClient, setError, setLoading, storeSignOut])
 
-  // Reset password function
-  const resetPassword = useCallback(async (data: ResetPasswordData) => {
-    try {
+  const resetPassword = useCallback(
+    async (data: ResetPasswordData) => {
+      const activeClient = ensureClient()
+      if (!activeClient) {
+        return { error: { message: 'Supabase client is not configured' } }
+      }
+
       setLoading(true)
       setError(null)
 
-      const { error } = await supabaseClient.auth.resetPasswordForEmail(data.email, {
-        redirectTo: `${window?.location?.origin}/auth/callback?type=recovery`,
-      })
+      try {
+        const { error: resetError } = await activeClient.auth.resetPasswordForEmail(
+          data.email,
+          {
+            redirectTo: resolveResetRedirect(),
+          },
+        )
 
-      if (error) {
-        const formattedError = formatAuthError(error)
-        setError(formattedError.message)
-        return { error: formattedError }
+        if (resetError) {
+          throw resetError
+        }
+
+        return {}
+      } catch (unknownError) {
+        const formatted = handleUnknownError(unknownError)
+        setError(formatted.message)
+        return { error: formatted }
+      } finally {
+        setLoading(false)
+      }
+    },
+    [ensureClient, setError, setLoading],
+  )
+
+  const updatePassword = useCallback(
+    async (payload: UpdatePasswordData) => {
+      const activeClient = ensureClient()
+      if (!activeClient) {
+        return { error: { message: 'Supabase client is not configured' } }
       }
 
-      return {}
-    } catch (error) {
-      const formattedError = formatAuthError(error)
-      setError(formattedError.message)
-      return { error: formattedError }
-    } finally {
-      setLoading(false)
-    }
-  }, [supabaseClient, setLoading, setError])
-
-  // Update password function
-  const updatePassword = useCallback(async (data: UpdatePasswordData) => {
-    try {
       setLoading(true)
       setError(null)
 
-      const { error } = await supabaseClient.auth.updateUser({
-        password: data.newPassword
-      })
+      try {
+        const { error: updateError } = await activeClient.auth.updateUser({
+          password: payload.newPassword,
+        })
 
-      if (error) {
-        const formattedError = formatAuthError(error)
-        setError(formattedError.message)
-        return { error: formattedError }
+        if (updateError) {
+          throw updateError
+        }
+
+        return {}
+      } catch (unknownError) {
+        const formatted = handleUnknownError(unknownError)
+        setError(formatted.message)
+        return { error: formatted }
+      } finally {
+        setLoading(false)
       }
+    },
+    [ensureClient, setError, setLoading],
+  )
 
-      return {}
-    } catch (error) {
-      const formattedError = formatAuthError(error)
-      setError(formattedError.message)
-      return { error: formattedError }
-    } finally {
-      setLoading(false)
-    }
-  }, [supabaseClient, setLoading, setError])
-
-  // Refresh session function
   const refreshSession = useCallback(async () => {
+    const activeClient = ensureClient()
+    if (!activeClient) {
+      return { error: { message: 'Supabase client is not configured' } }
+    }
+
+    setLoading(true)
+    setError(null)
+
     try {
-      setLoading(true)
-      setError(null)
+      const { data: refreshed, error: refreshError } = await activeClient.auth.refreshSession()
 
-      const { data, error } = await supabaseClient.auth.refreshSession()
-
-      if (error) {
-        const formattedError = formatAuthError(error)
-        setError(formattedError.message)
-        return { error: formattedError }
+      if (refreshError) {
+        throw refreshError
       }
 
-      return { session: data.session }
-    } catch (error) {
-      const formattedError = formatAuthError(error)
-      setError(formattedError.message)
-      return { error: formattedError }
+      const nextSession = toNullableSession(refreshed.session)
+      setSession(nextSession)
+      await updateAuthStateFromSession(activeClient, nextSession, setUser, setProfile)
+
+      if (nextSession) {
+        return { session: nextSession }
+      }
+
+      return {}
+    } catch (unknownError) {
+      const formatted = handleUnknownError(unknownError)
+      setError(formatted.message)
+      return { error: formatted }
     } finally {
       setLoading(false)
     }
-  }, [supabaseClient, setLoading, setError])
+  }, [ensureClient, setError, setLoading, setSession, setUser, setProfile])
 
   return {
     user,
@@ -383,35 +430,44 @@ export function useAuth(supabaseClient: any): AuthHookReturn {
   }
 }
 
-/**
- * Session management hook
- */
-export function useSession(supabaseClient: any): SessionHookReturn {
-  const { session, isLoading, error, setSession, setLoading, setError } = useAuthStore()
+export const useSession = (client: SupabaseAuthClient | null): SessionHookReturn => {
+  const { session, isLoading, error, setSession, setLoading, setError, setUser, setProfile } =
+    useAuthStore()
 
   const refreshSession = useCallback(async () => {
+    if (!client) {
+      const fallback: AuthError = { message: 'Supabase client is not configured' }
+      setError(fallback.message)
+      return { error: fallback }
+    }
+
+    setLoading(true)
+    setError(null)
+
     try {
-      setLoading(true)
-      setError(null)
+      const { data, error: refreshError } = await client.auth.refreshSession()
 
-      const { data, error } = await supabaseClient.auth.refreshSession()
-
-      if (error) {
-        const formattedError = formatAuthError(error)
-        setError(formattedError.message)
-        return { error: formattedError }
+      if (refreshError) {
+        throw refreshError
       }
 
-      setSession(data.session)
-      return { session: data.session }
-    } catch (error) {
-      const formattedError = formatAuthError(error)
-      setError(formattedError.message)
-      return { error: formattedError }
+    const nextSession = toNullableSession(data.session)
+    setSession(nextSession)
+    await updateAuthStateFromSession(client, nextSession, setUser, setProfile)
+
+    if (nextSession) {
+      return { session: nextSession }
+    }
+
+    return {}
+    } catch (unknownError) {
+      const formatted = handleUnknownError(unknownError)
+      setError(formatted.message)
+      return { error: formatted }
     } finally {
       setLoading(false)
     }
-  }, [supabaseClient, setSession, setLoading, setError])
+  }, [client, setError, setLoading, setProfile, setSession, setUser])
 
   return {
     session,
@@ -421,88 +477,74 @@ export function useSession(supabaseClient: any): SessionHookReturn {
   }
 }
 
-/**
- * Profile management hook
- */
-export function useProfile(supabaseClient: any): ProfileHookReturn {
+export const useProfile = (client: SupabaseAuthClient | null): ProfileHookReturn => {
   const { user, profile, setProfile } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch profile data
   const refetch = useCallback(async () => {
-    if (!user?.id || !supabaseClient) return
+    if (!client || !user?.id) {
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
 
     try {
-      setIsLoading(true)
-      setError(null)
-
-      const { data, error: fetchError } = await supabaseClient
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single()
-
-      if (fetchError) {
-        console.error('Error fetching profile:', fetchError)
-        setError(formatAuthError(fetchError).message)
-        return
-      }
-
-      setProfile(data)
-    } catch (error) {
-      console.error('Error fetching profile:', error)
-      setError(formatAuthError(error).message)
+      const nextProfile = await fetchProfile(client, user.id)
+      setProfile(nextProfile)
+    } catch (unknownError) {
+      const formatted = handleUnknownError(unknownError)
+      setError(formatted.message)
     } finally {
       setIsLoading(false)
     }
-  }, [user?.id, supabaseClient, setProfile])
+  }, [client, setProfile, user?.id])
 
-  // Update profile data
-  const updateProfile = useCallback(async (data: UpdateProfileData) => {
-    if (!user?.id || !supabaseClient) {
-      const error = { message: 'User not authenticated' }
-      setError(error.message)
-      return { error }
-    }
+  const updateProfile = useCallback(
+    async (data: UpdateProfileData) => {
+      if (!client || !user?.id) {
+        const fallback: AuthError = { message: 'User not authenticated' }
+        setError(fallback.message)
+        return { error: fallback }
+      }
 
-    try {
       setIsLoading(true)
       setError(null)
 
-      const { data: updatedProfile, error: updateError } = await supabaseClient
-        .from('profiles')
-        .update({
-          ...data,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id)
-        .select()
-        .single()
+      try {
+        const { data: updatedProfile, error: updateError } = await client
+          .from('profiles')
+          .update({
+            ...data,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', user.id)
+          .select('*')
+          .single()
 
-      if (updateError) {
-        const formattedError = formatAuthError(updateError)
-        setError(formattedError.message)
-        return { error: formattedError }
+        if (updateError) {
+          throw updateError
+        }
+
+        setProfile(updatedProfile)
+        return { profile: updatedProfile }
+      } catch (unknownError) {
+        const formatted = handleUnknownError(unknownError)
+        setError(formatted.message)
+        return { error: formatted }
+      } finally {
+        setIsLoading(false)
       }
+    },
+    [client, setProfile, user?.id],
+  )
 
-      setProfile(updatedProfile)
-      return { profile: updatedProfile }
-    } catch (error) {
-      const formattedError = formatAuthError(error)
-      setError(formattedError.message)
-      return { error: formattedError }
-    } finally {
-      setIsLoading(false)
-    }
-  }, [user?.id, supabaseClient, setProfile])
-
-  // Auto-fetch profile when user changes
   useEffect(() => {
     if (user?.id && !profile) {
-      refetch()
+      void refetch()
     }
-  }, [user?.id, profile, refetch])
+  }, [profile, refetch, user?.id])
 
   return {
     profile,
@@ -513,43 +555,43 @@ export function useProfile(supabaseClient: any): ProfileHookReturn {
   }
 }
 
-/**
- * Hook for handling auth form state
- */
-export function useAuthForm<T extends Record<string, any>>(
+export const useAuthForm = <T extends Record<string, unknown>>(
   initialValues: T,
-  validationFn?: (values: T) => Record<string, string>
-) {
+  validationFn?: (values: T) => Record<string, string>,
+) => {
   const [values, setValues] = useState<T>(initialValues)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const setValue = useCallback((field: keyof T, value: any) => {
-    setValues(prev => ({ ...prev, [field]: value }))
-    
-    // Clear error when user starts typing
-    if (errors[field as string]) {
-      setErrors(prev => {
-        const newErrors = { ...prev }
-        delete newErrors[field as string]
-        return newErrors
-      })
-    }
-  }, [errors])
+  const setValue = useCallback(
+    <K extends keyof T>(field: K, value: T[K]) => {
+      setValues((prev) => ({ ...prev, [field]: value }))
+
+      if (errors[field as string]) {
+        setErrors((prev) => {
+          const nextErrors = { ...prev }
+          delete nextErrors[field as string]
+          return nextErrors
+        })
+      }
+    },
+    [errors],
+  )
 
   const setTouchedField = useCallback((field: keyof T) => {
-    setTouched(prev => ({ ...prev, [field]: true }))
+    setTouched((prev) => ({ ...prev, [field]: true }))
   }, [])
 
   const validate = useCallback(() => {
-    if (!validationFn) return true
+    if (!validationFn) {
+      return true
+    }
 
     const validationErrors = validationFn(values)
     setErrors(validationErrors)
-    
     return Object.keys(validationErrors).length === 0
-  }, [values, validationFn])
+  }, [validationFn, values])
 
   const reset = useCallback(() => {
     setValues(initialValues)
@@ -558,33 +600,37 @@ export function useAuthForm<T extends Record<string, any>>(
     setIsSubmitting(false)
   }, [initialValues])
 
-  const handleSubmit = useCallback(async (
-    onSubmit: (values: T) => Promise<any>
-  ) => {
-    const isValid = validate()
-    
-    // Mark all fields as touched
-    const allTouched = Object.keys(values).reduce((acc, key) => ({
-      ...acc,
-      [key]: true
-    }), {})
-    setTouched(allTouched)
+  const handleSubmit = useCallback(
+    async (onSubmit: (formValues: T) => Promise<unknown>) => {
+      const isValid = validate()
 
-    if (!isValid) return
+      const allTouched = Object.fromEntries(
+        Object.keys(values).map((key) => [key, true] as const),
+      ) as Record<string, boolean>
+      setTouched(allTouched)
 
-    try {
-      setIsSubmitting(true)
-      await onSubmit(values)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }, [values, validate])
+      if (!isValid) {
+        return
+      }
+
+      try {
+        setIsSubmitting(true)
+        await onSubmit(values)
+      } finally {
+        setIsSubmitting(false)
+      }
+    },
+    [validate, values],
+  )
 
   const isValid = useMemo(() => {
-    if (!validationFn) return true
+    if (!validationFn) {
+      return true
+    }
+
     const validationErrors = validationFn(values)
     return Object.keys(validationErrors).length === 0
-  }, [values, validationFn])
+  }, [validationFn, values])
 
   return {
     values,
@@ -600,39 +646,38 @@ export function useAuthForm<T extends Record<string, any>>(
   }
 }
 
-/**
- * Hook for handling network connectivity and retrying failed requests
- */
-export function useAuthRetry() {
+export const useAuthRetry = () => {
   const [retryCount, setRetryCount] = useState(0)
   const [isRetrying, setIsRetrying] = useState(false)
 
-  const retry = useCallback(async (
-    operation: () => Promise<any>,
-    maxRetries = 3,
-    delay = 1000
-  ) => {
-    setIsRetrying(true)
-    
-    for (let i = 0; i <= maxRetries; i++) {
-      try {
-        const result = await operation()
-        setRetryCount(0)
-        setIsRetrying(false)
-        return result
-      } catch (error) {
-        setRetryCount(i + 1)
-        
-        if (i === maxRetries || !isNetworkError(error)) {
+  const retry = useCallback(
+    async <T>(operation: () => Promise<T>, maxRetries = 3, delay = 1000): Promise<T> => {
+      setIsRetrying(true)
+
+      for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+        try {
+          const result = await operation()
+          setRetryCount(0)
           setIsRetrying(false)
-          throw error
+          return result
+        } catch (error) {
+          setRetryCount(attempt + 1)
+
+          if (attempt === maxRetries || !isNetworkError(error)) {
+            setIsRetrying(false)
+            throw error
+          }
+
+          const timeout = delay * 2 ** attempt
+          await new Promise((resolve) => setTimeout(resolve, timeout))
         }
-        
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)))
       }
-    }
-  }, [])
+
+      setIsRetrying(false)
+      throw new Error('Retry attempts exceeded')
+    },
+    [],
+  )
 
   return {
     retry,
